@@ -12,6 +12,7 @@
     "@mdi/font": "^7.4.47",
     "@vueuse/core": "^14.3.0",
     "nanoid": "^5.1.11",
+    "opus-decoder": "^0.7.10",
     "vue": "^3.4.21"
   },
   "devDependencies": {

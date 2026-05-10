@@ -1,19 +1,36 @@
-// 录音 AudioWorklet 处理器 — 将麦克风输入的 Float32 PCM 帧直接转发到主线程
+// 录音 AudioWorklet — 攒够 960 samples（60ms@16kHz）后发送一帧到主线程
 class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.bufferSize = 960; // 60ms at 16kHz
+    this.buffer = new Float32Array(960); // 60ms 帧缓冲
+    this.offset = 0;
+    this.port.onmessage = (e) => {
+      if (e.data?.type === "reset") {
+        this.offset = 0;
+      }
+    };
   }
 
-  process(inputs, outputs, parameters) {
+  process(inputs) {
     const input = inputs[0];
+    if (!input || !input[0]) return true;
 
-    if (input && input.length > 0) {
-      const channelData = input[0];
+    const channelData = input[0]; // 每次 128 samples
+    let srcOffset = 0;
 
-      if (channelData && channelData.length > 0) {
-        // 转移 buffer 所有权，避免拷贝开销
-        this.port.postMessage(channelData, [channelData.buffer]);
+    // 将输入拼入缓冲，满 960 samples 时发送
+    while (srcOffset < channelData.length) {
+      const remaining = this.buffer.length - this.offset;
+      const copyLen = Math.min(remaining, channelData.length - srcOffset);
+      this.buffer.set(channelData.subarray(srcOffset, srcOffset + copyLen), this.offset);
+      this.offset += copyLen;
+      srcOffset += copyLen;
+
+      if (this.offset >= this.buffer.length) {
+        const frame = this.buffer.slice();
+        this.port.postMessage(frame, [frame.buffer]);
+        this.buffer = new Float32Array(960);
+        this.offset = 0;
       }
     }
 

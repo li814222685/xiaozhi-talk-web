@@ -1,17 +1,22 @@
-// 音频播放 — 通过 AudioWorklet 播放 Int16 PCM 数据，内部转为 Float32 送入播放器
+// 音频播放 — 通过 opus-decoder 解码 Opus 帧为 Float32 PCM，送入 AudioWorklet 播放
 import { ref } from "vue";
 import { tryOnScopeDispose } from "@vueuse/core";
+import { OpusDecoder } from "opus-decoder";
 
 export function useAudioPlayer() {
   const isPlaying = ref(false);
 
   let audioContext: AudioContext | null = null;
   let playerNode: AudioWorkletNode | null = null;
+  let decoder: OpusDecoder | null = null;
   let initialized = false;
 
-  // 初始化 AudioWorklet 播放器（只需调用一次）
+  // 初始化解码器和 AudioWorklet（只需调用一次）
   const init = async () => {
     if (initialized) return;
+
+    decoder = new OpusDecoder({ sampleRate: 16000, channels: 1 });
+    await decoder.ready;
 
     audioContext = new AudioContext({ sampleRate: 16000 });
     await audioContext.audioWorklet.addModule("/worklet/player-processor.js");
@@ -20,35 +25,34 @@ export function useAudioPlayer() {
     initialized = true;
   };
 
-  // 恢复 suspended 状态的 AudioContext（浏览器要求用户交互后才能播放）
+  // 恢复 suspended 状态（浏览器要求用户交互后才能播放）
   const resume = async () => {
     if (audioContext?.state === "suspended") {
       await audioContext.resume();
     }
   };
 
-  // 播放一段 Int16 PCM 音频数据，转为 Float32 后 postMessage 给 worklet
+  // 解码一帧 Opus 数据并送入播放队列
   const play = (buffer: ArrayBuffer) => {
-    if (!playerNode || !audioContext) return;
+    if (!playerNode || !audioContext || !decoder) return;
 
     if (audioContext.state === "suspended") {
       audioContext.resume();
     }
 
-    const int16Data = new Int16Array(buffer);
-    const float32Data = new Float32Array(int16Data.length);
-    for (let i = 0; i < int16Data.length; i++) {
-      float32Data[i] = int16Data[i] / 32768;
-    }
+    const opusFrame = new Uint8Array(buffer);
+    const { channelData, samplesDecoded } = decoder.decodeFrame(opusFrame);
 
-    playerNode.port.postMessage({ audioBuffer: float32Data }, [
-      float32Data.buffer,
-    ]);
+    if (samplesDecoded > 0 && channelData[0]) {
+      playerNode.port.postMessage({ audioBuffer: channelData[0] }, [
+        channelData[0].buffer,
+      ]);
+    }
 
     isPlaying.value = true;
   };
 
-  // 停止播放，清空 worklet 内部队列
+  // 停止播放，清空队列
   const stop = () => {
     if (playerNode) {
       playerNode.port.postMessage({ command: "clear" });
@@ -56,7 +60,7 @@ export function useAudioPlayer() {
     isPlaying.value = false;
   };
 
-  // 销毁播放器，释放所有资源
+  // 销毁所有资源
   const destroy = () => {
     stop();
     if (playerNode) {
@@ -67,10 +71,13 @@ export function useAudioPlayer() {
       audioContext.close();
       audioContext = null;
     }
+    if (decoder) {
+      decoder.free();
+      decoder = null;
+    }
     initialized = false;
   };
 
-  // 组件卸载时自动销毁
   tryOnScopeDispose(destroy);
 
   return { isPlaying, init, resume, play, stop };

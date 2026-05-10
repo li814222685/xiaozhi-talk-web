@@ -39,6 +39,7 @@ export function useVoiceChat() {
       case "tts":
         if (msg.state === "start") {
           isPlaying.value = true;
+          player.resume();
         } else if (msg.state === "stop") {
           isPlaying.value = false;
           player.stop();

@@ -73,7 +73,7 @@ export function useXiaozhiWebSocket() {
             transport: "websocket",
             features: { mcp: false },
             audio_params: {
-              format: "pcm",
+              format: "opus",
               sample_rate: 16000,
               channels: 1,
               frame_duration: 60,

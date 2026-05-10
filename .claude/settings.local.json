@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx vue-tsc *)"
+      "Bash(npx vue-tsc *)",
+      "WebSearch",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm install *)",
+      "Bash(npm ls *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(echo \"test\")",
+      "Read(//tmp/**)",
+      "Bash(echo \"EXITCODE:$?\")"
     ]
   }
 }
