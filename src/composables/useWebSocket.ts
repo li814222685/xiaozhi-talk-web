@@ -4,24 +4,15 @@ import {
   useWebSocket as useVueUseWebSocket,
   useLocalStorage,
 } from "@vueuse/core";
+import { nanoid } from "nanoid";
 import type { ServerMessage } from "@/types/messages";
-
-// 生成 UUID v4，用于设备标识
-function generateUUID(): string {
-  if (crypto.randomUUID) return crypto.randomUUID();
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
 
 type MessageHandler = (msg: ServerMessage) => void;
 
 export function useXiaozhiWebSocket() {
   // 设备标识，持久化到 localStorage
-  const deviceId = useLocalStorage("xiaozhi_device_id", generateUUID());
-  const clientId = useLocalStorage("xiaozhi_client_id", generateUUID());
+  const deviceId = useLocalStorage("xiaozhi_device_id", nanoid());
+  const clientId = useLocalStorage("xiaozhi_client_id", nanoid());
 
   const isConnected = ref(false);
   const isReady = ref(false); // hello 握手完成后为 true
