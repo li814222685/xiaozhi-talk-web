@@ -36,23 +36,14 @@ export function useVoiceChat() {
         }
         break;
 
-      case "llm":
-        // LLM 首条回复，创建 assistant 消息
-        if (msg.content) {
-          chat.startAssistantMessage(msg.content);
-        }
-        break;
-
       case "tts":
-        // TTS 状态事件：start/stop/sentence_end
         if (msg.state === "start") {
           isPlaying.value = true;
         } else if (msg.state === "stop") {
           isPlaying.value = false;
           player.stop();
           chat.finishAssistantMessage();
-        } else if (msg.state === "sentence_end" && msg.text) {
-          // 每句结束，追加到当前 assistant 消息
+        } else if (msg.state === "sentence_start" && msg.text) {
           if (chat.hasCurrentAssistant()) {
             chat.appendToAssistant(msg.text);
           } else {
@@ -108,10 +99,9 @@ export function useVoiceChat() {
     }
   };
 
-  // 发送文字消息
+  // 发送文字消息（不本地添加，统一由 stt 回显渲染）
   const handleSendText = (text: string) => {
     if (!text.trim() || isRecording.value || isPlaying.value) return;
-    chat.addUserMessage(text.trim());
     ws.sendText(text.trim());
   };
 
