@@ -1,0 +1,48 @@
+$color-primary: #ffffff;
+$color-secondary: #f8f9fa;
+$color-tertiary: #e9ecef;
+$color-card: #ffffff;
+$color-input: #f1f3f5;
+$color-text-primary: #212529;
+$color-text-secondary: #6c757d;
+$color-text-muted: #adb5bd;
+$color-accent: #495057;
+$color-accent-hover: #343a40;
+$color-accent-secondary: #6c757d;
+$color-border: #dee2e6;
+$color-success: #28a745;
+$color-warning: #ffc107;
+$color-danger: #dc3545;
+$color-info: #17a2b8;
+
+$shadow-light: 0 1px 3px rgba(0, 0, 0, 0.06);
+$shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.08);
+
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 14px;
+
+$transition-fast: 0.15s ease;
+$transition-normal: 0.2s ease;
+
+$glow-color: rgba(99, 102, 241, 1);
+$glow-color-rgb: 99, 102, 241;
+
+:root {
+  --glow-color: rgba(99, 102, 241, 1);
+  --glow-color-rgb: 99, 102, 241;
+}
+
+:root[data-theme="dark"] {
+  --color-primary: #1a1a1a;
+  --color-secondary: #242424;
+  --color-tertiary: #2d2d2d;
+  --color-card: #2a2a2a;
+  --color-input: #333333;
+  --color-text-primary: #e9ecef;
+  --color-text-secondary: #adb5bd;
+  --color-text-muted: #6c757d;
+  --color-accent: #e9ecef;
+  --color-accent-hover: #ffffff;
+  --color-border: #404040;
+}

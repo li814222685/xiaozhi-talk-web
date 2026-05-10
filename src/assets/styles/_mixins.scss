@@ -1,0 +1,43 @@
+@mixin glow-breathe($duration: 2s) {
+  border-color: transparent;
+  box-shadow: 0 0 5px var(--glow-color),
+    0 0 10px rgba(var(--glow-color-rgb), 0.3),
+    0 0 20px rgba(var(--glow-color-rgb), 0.2),
+    0 0 30px rgba(var(--glow-color-rgb), 0.1);
+  animation: glow-breathe $duration ease-in-out infinite;
+}
+
+@mixin glow-breathe-simple($duration: 2s) {
+  border-color: transparent;
+  box-shadow: 0 0 8px var(--glow-color),
+    0 0 16px rgba(var(--glow-color-rgb), 0.4);
+  animation: glow-breathe-simple $duration ease-in-out infinite;
+}
+
+@keyframes glow-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 5px var(--glow-color),
+      0 0 10px rgba(var(--glow-color-rgb), 0.3),
+      0 0 20px rgba(var(--glow-color-rgb), 0.2),
+      0 0 30px rgba(var(--glow-color-rgb), 0.1);
+  }
+  50% {
+    box-shadow: 0 0 10px var(--glow-color),
+      0 0 20px rgba(var(--glow-color-rgb), 0.5),
+      0 0 40px rgba(var(--glow-color-rgb), 0.3),
+      0 0 60px rgba(var(--glow-color-rgb), 0.2);
+  }
+}
+
+@keyframes glow-breathe-simple {
+  0%,
+  100% {
+    box-shadow: 0 0 8px var(--glow-color),
+      0 0 16px rgba(var(--glow-color-rgb), 0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--glow-color),
+      0 0 24px rgba(var(--glow-color-rgb), 0.6);
+  }
+}
