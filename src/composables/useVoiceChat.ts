@@ -87,14 +87,10 @@ export function useVoiceChat() {
     isRecording.value = false;
   };
 
-  // 麦克风按钮点击：录音/停止录音/打断播放 三态切换
+  // 麦克风按钮点击：录音/停止录音
   const handleVoiceClick = () => {
     if (isRecording.value) {
       stopRecording();
-    } else if (isPlaying.value) {
-      isPlaying.value = false;
-      player.stop();
-      ws.abort();
     } else {
       startRecording();
     }

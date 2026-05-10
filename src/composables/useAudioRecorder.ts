@@ -54,7 +54,8 @@ export function useAudioRecorder() {
 
     // 接收 worklet 发来的 960 samples PCM 帧，送入编码器
     workletNode.port.onmessage = (e) => {
-      if (!isRecording.value || !encoder || encoder.state !== "configured") return;
+      if (!isRecording.value || !encoder || encoder.state !== "configured")
+        return;
 
       const pcmData = e.data as Float32Array;
       const audioData = new AudioData({
@@ -63,7 +64,7 @@ export function useAudioRecorder() {
         numberOfFrames: pcmData.length,
         numberOfChannels: 1,
         timestamp,
-        data: pcmData,
+        data: pcmData.buffer.slice(0) as ArrayBuffer,
       });
 
       encoder.encode(audioData);

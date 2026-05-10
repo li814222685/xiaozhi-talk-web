@@ -130,14 +130,6 @@
   opacity: 0;
 }
 
-.avatar-hidden {
-  opacity: 0 !important;
-}
-
-.avatar-visible {
-  opacity: 1 !important;
-}
-
 .main-content {
   flex: 1;
   display: flex;
@@ -238,11 +230,6 @@
     background-color: #dc3545;
     color: white;
     animation: pulse 1s infinite;
-  }
-
-  &.playing {
-    background-color: #ffc107;
-    color: #212529;
   }
 
   &:hover:not(:disabled) {

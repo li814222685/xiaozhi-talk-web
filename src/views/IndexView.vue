@@ -49,13 +49,13 @@
           <img
             :src="idleAvatar"
             class="avatar-image"
-            :class="{ 'avatar-hidden': isPlaying || isRecording }"
+            :style="{ opacity: isPlaying ? 0 : 1 }"
             alt="Idle Avatar"
           />
           <img
             :src="speakingAvatar"
             class="avatar-image"
-            :class="{ 'avatar-visible': isPlaying || isRecording }"
+            :style="{ opacity: isPlaying ? 1 : 0 }"
             alt="Speaking Avatar"
           />
         </div>
@@ -83,12 +83,11 @@
           <div class="input-container">
             <button
               class="voice-btn"
-              :class="{ recording: isRecording, playing: isPlaying }"
-              :disabled="!isConnected"
+              :class="{ recording: isRecording }"
+              :disabled="!isConnected || isPlaying"
               @click="handleVoiceClick"
             >
               <i v-if="isRecording" class="mdi mdi-stop voice-icon"></i>
-              <i v-else-if="isPlaying" class="mdi mdi-stop voice-icon"></i>
               <i v-else class="mdi mdi-microphone voice-icon"></i>
             </button>
 
