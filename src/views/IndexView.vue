@@ -126,6 +126,7 @@ import { ref, onMounted } from "vue";
 import { useDark, useToggle, useFullscreen, useClipboard } from "@vueuse/core";
 import { useVoiceChat } from "@/composables/useVoiceChat";
 
+// 暗色模式
 const isDark = useDark({
   selector: "html",
   attribute: "data-theme",
@@ -136,9 +137,11 @@ const isDark = useDark({
 const toggleDark = useToggle(isDark);
 const handleToggleDark = () => toggleDark();
 
+// 全屏 & 剪贴板
 const { isFullscreen, toggle } = useFullscreen();
 const { copy } = useClipboard();
 
+// 语音对话核心逻辑
 const {
   isConnected,
   isReady,
@@ -151,21 +154,26 @@ const {
   handleSendText,
 } = useVoiceChat();
 
+// 输入框 & 头像资源
 const inputText = ref("");
 const idleAvatar = "/src/assets/webp/hlw1.webp";
 const speakingAvatar = "/src/assets/webp/hlw2.webp";
 
+// 发送文字消息
 const onSendText = () => {
   handleSendText(inputText.value);
   inputText.value = "";
 };
 
+// 预留功能
 const toggleMagic = () => {};
 
+// 分享：复制当前页面链接
 const shareApp = () => {
   copy(window.location.href);
 };
 
+// 组件挂载：预加载头像图片，初始化 WebSocket 连接
 onMounted(() => {
   const preload = [idleAvatar, speakingAvatar];
   preload.forEach((src) => {
@@ -176,6 +184,6 @@ onMounted(() => {
 });
 </script>
 
-<style lang="scss">
-@import "@/views/IndexView.scss";
+<style lang="scss" scoped>
+@use "@/views/IndexView.scss";
 </style>

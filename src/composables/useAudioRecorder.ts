@@ -1,3 +1,4 @@
+// 音频录制 — 通过 AudioWorklet 采集麦克风 Float32 PCM 帧（16kHz 单声道）
 import { ref } from "vue";
 import { tryOnScopeDispose } from "@vueuse/core";
 
@@ -8,6 +9,7 @@ export function useAudioRecorder() {
   let mediaStream: MediaStream | null = null;
   let workletNode: AudioWorkletNode | null = null;
 
+  // 开始录音，每收到一帧音频数据调用 onFrame 回调
   const start = async (onFrame: (buffer: ArrayBuffer) => void) => {
     if (isRecording.value) return;
 
@@ -29,19 +31,21 @@ export function useAudioRecorder() {
     source.connect(workletNode);
     workletNode.connect(audioContext.destination);
 
+    // 接收 worklet 发送的 Float32 PCM 帧
     workletNode.port.onmessage = (e) => {
       if (!isRecording.value) return;
       const data = e.data;
       if (data instanceof Float32Array) {
-        onFrame(data.buffer);
+        onFrame(data.buffer.slice(0) as ArrayBuffer);
       } else if (data?.buffer) {
-        onFrame(data.buffer);
+        onFrame(data.buffer.slice(0) as ArrayBuffer);
       }
     };
 
     isRecording.value = true;
   };
 
+  // 停止录音，释放所有音频资源
   const stop = () => {
     if (!isRecording.value) return;
 
@@ -64,6 +68,7 @@ export function useAudioRecorder() {
     isRecording.value = false;
   };
 
+  // 组件卸载时自动停止录音
   tryOnScopeDispose(stop);
 
   return { isRecording, start, stop };

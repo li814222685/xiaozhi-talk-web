@@ -1,3 +1,4 @@
+// 语音对话编排层 — 组合 WebSocket、录音、播放、消息四个模块，处理业务流程
 import { ref } from "vue";
 import { tryOnScopeDispose } from "@vueuse/core";
 import { useXiaozhiWebSocket } from "./useWebSocket";
@@ -20,25 +21,30 @@ export function useVoiceChat() {
     import.meta.env.VITE_WS_URL ||
     (isDev ? "/xiaozhi/v1/" : "ws://192.168.112.254:8989/xiaozhi/v1/");
 
+  // 服务端消息路由：根据 type 分发到对应处理逻辑
   const handleMessage = (msg: ServerMessage) => {
     switch (msg.type) {
       case "audio":
+        // 服务端下发的 TTS 音频，送入播放器
         player.play(msg.data);
         break;
 
       case "stt":
+        // 语音识别结果，作为用户消息展示
         if (msg.text) {
           chat.addUserMessage(msg.text);
         }
         break;
 
       case "llm":
+        // LLM 首条回复，创建 assistant 消息
         if (msg.content) {
           chat.startAssistantMessage(msg.content);
         }
         break;
 
       case "tts":
+        // TTS 状态事件：start/stop/sentence_end
         if (msg.state === "start") {
           isPlaying.value = true;
         } else if (msg.state === "stop") {
@@ -46,6 +52,7 @@ export function useVoiceChat() {
           player.stop();
           chat.finishAssistantMessage();
         } else if (msg.state === "sentence_end" && msg.text) {
+          // 每句结束，追加到当前 assistant 消息
           if (chat.hasCurrentAssistant()) {
             chat.appendToAssistant(msg.text);
           } else {
@@ -65,6 +72,7 @@ export function useVoiceChat() {
     }
   };
 
+  // 开始录音：启动麦克风，每帧音频通过 WebSocket 发送，通知服务端开始监听
   const startRecording = async () => {
     if (isRecording.value) return;
 
@@ -75,10 +83,11 @@ export function useVoiceChat() {
       ws.startListen("manual");
       isRecording.value = true;
     } catch {
-      // getUserMedia denied
+      // getUserMedia 被拒绝
     }
   };
 
+  // 停止录音：关闭麦克风，通知服务端停止监听
   const stopRecording = () => {
     if (!isRecording.value) return;
     ws.stopListen();
@@ -86,6 +95,7 @@ export function useVoiceChat() {
     isRecording.value = false;
   };
 
+  // 麦克风按钮点击：录音/停止录音/打断播放 三态切换
   const handleVoiceClick = () => {
     if (isRecording.value) {
       stopRecording();
@@ -98,12 +108,14 @@ export function useVoiceChat() {
     }
   };
 
+  // 发送文字消息
   const handleSendText = (text: string) => {
     if (!text.trim() || isRecording.value || isPlaying.value) return;
     chat.addUserMessage(text.trim());
     ws.sendText(text.trim());
   };
 
+  // 初始化：注册消息监听、初始化播放器、建立 WebSocket 连接
   const init = async () => {
     ws.onMessage(handleMessage);
     await player.init();
@@ -114,6 +126,7 @@ export function useVoiceChat() {
     ws.reconnect();
   };
 
+  // 组件卸载时清理所有资源
   tryOnScopeDispose(() => {
     recorder.stop();
     player.stop();

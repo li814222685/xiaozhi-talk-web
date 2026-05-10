@@ -1,3 +1,5 @@
+// 服务端消息类型定义
+
 export interface AudioParams {
   format: string;
   sample_rate: number;
@@ -5,6 +7,7 @@ export interface AudioParams {
   frame_duration: number;
 }
 
+// 服务端下行消息（区分联合类型）
 export type ServerMessage =
   | { type: "hello"; session_id: string; audio_params?: AudioParams }
   | { type: "stt"; text: string }
@@ -14,6 +17,7 @@ export type ServerMessage =
   | { type: "error"; message?: string; error?: string }
   | { type: "abort"; reason: string };
 
+// 聊天消息（前端展示用）
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";

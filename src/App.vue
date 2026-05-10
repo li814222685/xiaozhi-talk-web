@@ -9,5 +9,5 @@ import IndexView from "@/views/IndexView.vue";
 </script>
 
 <style lang="scss">
-@import "@/assets/styles/main.scss";
+@use "@/assets/styles/main.scss";
 </style>
