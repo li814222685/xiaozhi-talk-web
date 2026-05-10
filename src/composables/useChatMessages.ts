@@ -10,10 +10,9 @@ export function useChatMessages() {
   let typeQueue: string[] = [];
   let typeTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // 逐字渲染队列中的文本
+  // 逐字渲染队列中的文本（队列耗尽时保持光标，由 finishAssistantMessage 关闭）
   const processTypeQueue = () => {
     if (typeQueue.length === 0) {
-      isTyping.value = false;
       typeTimer = null;
       return;
     }

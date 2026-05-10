@@ -1,4 +1,5 @@
 <template>
+  <AppLoader :assets-ready="assetsReady" />
   <div class="talker">
     <header class="header">
       <div class="header-content">
@@ -23,8 +24,15 @@
           >
             <i class="mdi mdi-refresh icon"></i>
           </button>
-          <button class="btn-icon" :title="isMuted ? '取消静音' : '静音'" @click="toggleMute">
-            <i class="mdi icon" :class="isMuted ? 'mdi-volume-off' : 'mdi-volume-high'"></i>
+          <button
+            class="btn-icon"
+            :title="isMuted ? '取消静音' : '静音'"
+            @click="toggleMute"
+          >
+            <i
+              class="mdi icon"
+              :class="isMuted ? 'mdi-volume-off' : 'mdi-volume-high'"
+            ></i>
           </button>
           <button class="btn-icon" @click="toggleMagic">
             <i class="mdi mdi-auto-fix icon"></i>
@@ -71,10 +79,16 @@
           >
             <div class="message-bubble">
               <p class="message-content">
-                {{ message.content }}<span
-                  v-if="message.role === 'assistant' && index === messages.length - 1 && isTyping"
+                {{ message.content
+                }}<span
+                  v-if="
+                    message.role === 'assistant' &&
+                    index === messages.length - 1 &&
+                    isTyping
+                  "
                   class="typing-cursor"
-                >|</span>
+                  >|</span
+                >
               </p>
             </div>
           </div>
@@ -118,15 +132,73 @@
         </div>
       </main>
     </div>
+
+    <ElDialog
+      v-model="showSettings"
+      title="设置"
+      width="420px"
+      :close-on-click-modal="true"
+      class="settings-dialog"
+    >
+      <div class="settings-form">
+        <div class="settings-field">
+          <label>客户端 ID</label>
+          <ElInput
+            v-model="settingsForm.clientId"
+            type="textarea"
+            :rows="2"
+            placeholder="Client ID"
+            resize="vertical"
+          />
+        </div>
+        <div class="settings-field">
+          <label>设备 ID</label>
+          <ElInput
+            v-model="settingsForm.deviceId"
+            type="textarea"
+            :rows="2"
+            placeholder="Device ID"
+            resize="vertical"
+          />
+        </div>
+        <div class="settings-field">
+          <label>头像套装</label>
+          <ElSelect v-model="settingsForm.avatarIdx" style="width: 100%">
+            <ElOption
+              v-for="(s, i) in avatarSets"
+              :key="i"
+              :label="s.name"
+              :value="i"
+            />
+          </ElSelect>
+        </div>
+      </div>
+      <template #footer>
+        <ElButton @click="showSettings = false">取消</ElButton>
+        <ElButton type="primary" @click="saveSettings">保存</ElButton>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useDark, useToggle, useFullscreen, useClipboard, useLocalStorage } from "@vueuse/core";
+import { ref, computed, onMounted, reactive } from "vue";
+import {
+  useDark,
+  useToggle,
+  useFullscreen,
+  useClipboard,
+  useLocalStorage,
+} from "@vueuse/core";
 import { useVoiceChat } from "@/composables/useVoiceChat";
 import { avatarSets, AVATAR_STORAGE_KEY } from "@/config/avatars";
-import Swal from "sweetalert2";
+import AppLoader from "@/components/AppLoader.vue";
+import { ElDialog, ElInput, ElSelect, ElOption, ElButton } from "element-plus";
+import "element-plus/es/components/dialog/style/css";
+import "element-plus/es/components/input/style/css";
+import "element-plus/es/components/select/style/css";
+import "element-plus/es/components/option/style/css";
+import "element-plus/es/components/button/style/css";
 
 // 暗色模式
 const isDark = useDark({
@@ -161,13 +233,17 @@ const {
 
 const toggleMute = () => setMuted(!isMuted.value);
 
-
 const avatarIndex = useLocalStorage(AVATAR_STORAGE_KEY, 0);
-const idleAvatar = computed(() => avatarSets[avatarIndex.value]?.idle ?? avatarSets[0].idle);
-const speakingAvatar = computed(() => avatarSets[avatarIndex.value]?.speaking ?? avatarSets[0].speaking);
+const idleAvatar = computed(
+  () => avatarSets[avatarIndex.value]?.idle ?? avatarSets[0].idle
+);
+const speakingAvatar = computed(
+  () => avatarSets[avatarIndex.value]?.speaking ?? avatarSets[0].speaking
+);
 
 // 输入框
 const inputText = ref("");
+const assetsReady = ref(false);
 
 // 发送文字消息
 const onSendText = () => {
@@ -175,38 +251,24 @@ const onSendText = () => {
   inputText.value = "";
 };
 
-// 设置弹窗：配置 clientId、deviceId、头像套装
-const toggleMagic = async () => {
-  const clientId = localStorage.getItem("xiaozhi_client_id") ?? "";
-  const deviceId = localStorage.getItem("xiaozhi_device_id") ?? "";
-  const avatarOptions = avatarSets.map((s, i) => `<option value="${i}" ${i === avatarIndex.value ? "selected" : ""}>${s.name}</option>`).join("");
+// 设置弹窗
+const showSettings = ref(false);
+const settingsForm = reactive({ clientId: "", deviceId: "", avatarIdx: 0 });
 
-  const { value } = await Swal.fire({
-    title: "设置",
-    html: `
-      <label style="display:block;text-align:left;margin-bottom:4px;font-size:13px;color:#666">客户端 ID</label>
-      <input id="swal-client" class="swal2-input" value="${clientId}" placeholder="Client ID">
-      <label style="display:block;text-align:left;margin-bottom:4px;margin-top:12px;font-size:13px;color:#666">设备 ID</label>
-      <input id="swal-device" class="swal2-input" value="${deviceId}" placeholder="Device ID">
-      <label style="display:block;text-align:left;margin-bottom:4px;margin-top:12px;font-size:13px;color:#666">头像套装</label>
-      <select id="swal-avatar" class="swal2-select">${avatarOptions}</select>
-    `,
-    focusConfirm: false,
-    confirmButtonText: "保存",
-    showCancelButton: true,
-    cancelButtonText: "取消",
-    preConfirm: () => ({
-      clientId: (document.getElementById("swal-client") as HTMLInputElement).value,
-      deviceId: (document.getElementById("swal-device") as HTMLInputElement).value,
-      avatarIdx: parseInt((document.getElementById("swal-avatar") as HTMLSelectElement).value),
-    }),
-  });
+const toggleMagic = () => {
+  settingsForm.clientId = localStorage.getItem("xiaozhi_client_id") ?? "";
+  settingsForm.deviceId = localStorage.getItem("xiaozhi_device_id") ?? "";
+  settingsForm.avatarIdx = avatarIndex.value;
+  showSettings.value = true;
+};
 
-  if (value) {
-    if (value.clientId) localStorage.setItem("xiaozhi_client_id", value.clientId);
-    if (value.deviceId) localStorage.setItem("xiaozhi_device_id", value.deviceId);
-    avatarIndex.value = value.avatarIdx;
-  }
+const saveSettings = () => {
+  if (settingsForm.clientId)
+    localStorage.setItem("xiaozhi_client_id", settingsForm.clientId.trim());
+  if (settingsForm.deviceId)
+    localStorage.setItem("xiaozhi_device_id", settingsForm.deviceId.trim());
+  avatarIndex.value = settingsForm.avatarIdx;
+  showSettings.value = false;
 };
 
 // 分享：复制当前页面链接
@@ -224,10 +286,18 @@ onMounted(async () => {
   }
 
   const preload = [idleAvatar.value, speakingAvatar.value];
-  preload.forEach((src) => {
-    const img = new Image();
-    img.src = src;
-  });
+  await Promise.all(
+    preload.map(
+      (src) =>
+        new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = src;
+        })
+    )
+  );
+  assetsReady.value = true;
   init();
 });
 </script>

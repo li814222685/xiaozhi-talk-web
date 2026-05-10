@@ -10,7 +10,11 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(echo \"test\")",
       "Read(//tmp/**)",
-      "Bash(echo \"EXITCODE:$?\")"
+      "Bash(echo \"EXITCODE:$?\")",
+      "Read(//Volumes/GoogleDrive-102903621466835605618/My Drive/meril/**)",
+      "Read(//mnt/g/meril/**)",
+      "Bash(npm uninstall *)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(JSON.parse\\(require\\('fs'\\).readFileSync\\('package.json','utf8'\\)\\).dependencies, null, 2\\)\\)\")"
     ]
   }
 }
