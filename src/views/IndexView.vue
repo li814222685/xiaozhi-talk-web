@@ -47,16 +47,9 @@
       <aside class="avatar-aside">
         <div class="avatar-container">
           <img
-            :src="idleAvatar"
+            :src="isPlaying ? speakingAvatar : idleAvatar"
             class="avatar-image"
-            :style="{ opacity: isPlaying ? 0 : 1 }"
-            alt="Idle Avatar"
-          />
-          <img
-            :src="speakingAvatar"
-            class="avatar-image"
-            :style="{ opacity: isPlaying ? 1 : 0 }"
-            alt="Speaking Avatar"
+            alt="Avatar"
           />
         </div>
       </aside>

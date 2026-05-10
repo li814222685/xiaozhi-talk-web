@@ -119,15 +119,6 @@
   height: 100%;
   object-fit: cover;
   object-position: center 120px;
-  transition: opacity 0.3s ease-in-out;
-}
-
-.avatar-image:first-child {
-  opacity: 1;
-}
-
-.avatar-image:last-child {
-  opacity: 0;
 }
 
 .main-content {
