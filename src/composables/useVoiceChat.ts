@@ -10,6 +10,8 @@ import type { ServerMessage } from "@/types/messages";
 export function useVoiceChat() {
   const isRecording = ref(false);
   const isPlaying = ref(false);
+  let ttsFinished = false;
+  let endedTimer: ReturnType<typeof setTimeout> | null = null;
 
   const ws = useXiaozhiWebSocket();
   const recorder = useAudioRecorder();
@@ -25,7 +27,15 @@ export function useVoiceChat() {
   const handleMessage = (msg: ServerMessage) => {
     switch (msg.type) {
       case "audio":
-        // 服务端下发的 TTS 音频，送入播放器
+        // 收到音频帧，取消超时计时器
+        if (endedTimer) {
+          clearTimeout(endedTimer);
+          endedTimer = null;
+        }
+        if (!isPlaying.value) {
+          isPlaying.value = true;
+          ttsFinished = false;
+        }
         player.play(msg.data);
         break;
 
@@ -38,11 +48,10 @@ export function useVoiceChat() {
 
       case "tts":
         if (msg.state === "start") {
-          isPlaying.value = true;
           player.resume();
+          ttsFinished = false;
         } else if (msg.state === "stop") {
-          isPlaying.value = false;
-          player.stop();
+          ttsFinished = true;
           chat.finishAssistantMessage();
         } else if (msg.state === "sentence_start" && msg.text) {
           if (chat.hasCurrentAssistant()) {
@@ -89,6 +98,7 @@ export function useVoiceChat() {
 
   // 麦克风按钮点击：录音/停止录音
   const handleVoiceClick = () => {
+    player.resume();
     if (isRecording.value) {
       stopRecording();
     } else {
@@ -99,6 +109,7 @@ export function useVoiceChat() {
   // 发送文字消息（不本地添加，统一由 stt 回显渲染）
   const handleSendText = (text: string) => {
     if (!text.trim() || isRecording.value || isPlaying.value) return;
+    player.resume();
     ws.sendText(text.trim());
   };
 
@@ -106,6 +117,18 @@ export function useVoiceChat() {
   const init = async () => {
     ws.onMessage(handleMessage);
     await player.init();
+    // 音频队列播放完毕时判断是否恢复状态
+    player.onEnded(() => {
+      if (ttsFinished) {
+        isPlaying.value = false;
+      } else {
+        // 未收到 tts stop，启动超时兜底（1.5s 内无新音频则恢复）
+        endedTimer = setTimeout(() => {
+          isPlaying.value = false;
+          endedTimer = null;
+        }, 1500);
+      }
+    });
     ws.connect(wsUrl);
   };
 

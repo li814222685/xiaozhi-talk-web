@@ -10,6 +10,7 @@ export function useAudioPlayer() {
   let playerNode: AudioWorkletNode | null = null;
   let decoder: OpusDecoder | null = null;
   let initialized = false;
+  let onEndedCallback: (() => void) | null = null;
 
   // 初始化解码器和 AudioWorklet（只需调用一次）
   const init = async () => {
@@ -22,7 +23,21 @@ export function useAudioPlayer() {
     await audioContext.audioWorklet.addModule("/worklet/player-processor.js");
     playerNode = new AudioWorkletNode(audioContext, "player-processor");
     playerNode.connect(audioContext.destination);
+
+    // 监听 worklet 队列播放完毕的通知
+    playerNode.port.onmessage = (e) => {
+      if (e.data?.type === "ended") {
+        isPlaying.value = false;
+        onEndedCallback?.();
+      }
+    };
+
     initialized = true;
+  };
+
+  // 注册播放结束回调
+  const onEnded = (cb: () => void) => {
+    onEndedCallback = cb;
   };
 
   // 恢复 suspended 状态（浏览器要求用户交互后才能播放）
@@ -80,5 +95,5 @@ export function useAudioPlayer() {
 
   tryOnScopeDispose(destroy);
 
-  return { isPlaying, init, resume, play, stop };
+  return { isPlaying, init, resume, play, stop, onEnded };
 }
