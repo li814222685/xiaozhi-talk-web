@@ -189,6 +189,18 @@
   word-break: break-word;
 }
 
+.typing-cursor {
+  display: inline;
+  font-weight: 100;
+  color: var(--color-text-primary, #212529);
+  animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 .input-area {
   padding: 16px 32px 24px;
   background-color: var(--color-primary, #ffffff);

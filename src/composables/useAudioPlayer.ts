@@ -8,9 +8,12 @@ export function useAudioPlayer() {
 
   let audioContext: AudioContext | null = null;
   let playerNode: AudioWorkletNode | null = null;
+  let gainNode: GainNode | null = null;
   let decoder: OpusDecoder | null = null;
   let initialized = false;
   let onEndedCallback: (() => void) | null = null;
+
+  const isMuted = ref(false);
 
   // 初始化解码器和 AudioWorklet（只需调用一次）
   const init = async () => {
@@ -22,7 +25,10 @@ export function useAudioPlayer() {
     audioContext = new AudioContext({ sampleRate: 16000 });
     await audioContext.audioWorklet.addModule("/worklet/player-processor.js");
     playerNode = new AudioWorkletNode(audioContext, "player-processor");
-    playerNode.connect(audioContext.destination);
+    gainNode = audioContext.createGain();
+    gainNode.gain.value = isMuted.value ? 0 : 1;
+    playerNode.connect(gainNode);
+    gainNode.connect(audioContext.destination);
 
     // 监听 worklet 队列播放完毕的通知
     playerNode.port.onmessage = (e) => {
@@ -67,7 +73,13 @@ export function useAudioPlayer() {
     isPlaying.value = true;
   };
 
-  // 停止播放，清空队列
+  const setMuted = (muted: boolean) => {
+    isMuted.value = muted;
+    if (gainNode) {
+      gainNode.gain.value = muted ? 0 : 1;
+    }
+  };
+
   const stop = () => {
     if (playerNode) {
       playerNode.port.postMessage({ command: "clear" });
@@ -75,12 +87,15 @@ export function useAudioPlayer() {
     isPlaying.value = false;
   };
 
-  // 销毁所有资源
   const destroy = () => {
     stop();
     if (playerNode) {
       playerNode.disconnect();
       playerNode = null;
+    }
+    if (gainNode) {
+      gainNode.disconnect();
+      gainNode = null;
     }
     if (audioContext) {
       audioContext.close();
@@ -95,5 +110,5 @@ export function useAudioPlayer() {
 
   tryOnScopeDispose(destroy);
 
-  return { isPlaying, init, resume, play, stop, onEnded };
+  return { isPlaying, isMuted, setMuted, init, resume, play, stop, onEnded };
 }

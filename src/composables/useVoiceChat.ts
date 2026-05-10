@@ -43,6 +43,7 @@ export function useVoiceChat() {
         // 语音识别结果，作为用户消息展示
         if (msg.text) {
           chat.addUserMessage(msg.text);
+          chat.startWaiting();
         }
         break;
 
@@ -73,7 +74,7 @@ export function useVoiceChat() {
     }
   };
 
-  // 开始录音：启动麦克风，每帧音频通过 WebSocket 发送，通知服务端开始监听
+  // 开始录音：启动麦克风，auto 模式持续发送音频帧，服务端 VAD 自动断句
   const startRecording = async () => {
     if (isRecording.value) return;
 
@@ -81,17 +82,16 @@ export function useVoiceChat() {
       await recorder.start((buffer) => {
         ws.send(buffer);
       });
-      ws.startListen("manual");
+      ws.startListen("auto");
       isRecording.value = true;
     } catch {
       // getUserMedia 被拒绝
     }
   };
 
-  // 停止录音：关闭麦克风，通知服务端停止监听
+  // 停止录音：关闭麦克风（auto 模式无需发 stop，服务端 VAD 自动处理）
   const stopRecording = () => {
     if (!isRecording.value) return;
-    ws.stopListen();
     recorder.stop();
     isRecording.value = false;
   };
@@ -148,6 +148,9 @@ export function useVoiceChat() {
     isReady: ws.isReady,
     isRecording,
     isPlaying,
+    isMuted: player.isMuted,
+    setMuted: player.setMuted,
+    isTyping: chat.isTyping,
     messages: chat.messages,
     init,
     reconnect,
