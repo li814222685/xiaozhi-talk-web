@@ -55,12 +55,31 @@ export function useXiaozhiWebSocket() {
       ? `${url}&device-id=${deviceId.value}&client-id=${clientId.value}`
       : `${url}?device-id=${deviceId.value}&client-id=${clientId.value}`;
 
+    // 拦截原生 WebSocket.close() 方法，记录所有关闭操作
+    const originalClose = WebSocket.prototype.close;
+    WebSocket.prototype.close = function (
+      this: WebSocket,
+      code?: number,
+      reason?: string
+    ) {
+      console.log("[WS] WebSocket.close() 被调用!", {
+        readyState: this.readyState,
+        code: code ?? "未指定",
+        reason: reason ?? "无",
+        stack: new Error().stack,
+      });
+      return originalClose.apply(this, [code, reason]);
+    };
+
     wsInstance = useVueUseWebSocket(fullUrl, {
-      autoReconnect: {
-        retries: 5,
-        delay: 1000,
-      },
+      // autoReconnect: {
+      //   retries: 5,
+      //   delay: 1000,
+      // },
+      autoClose: false,
+      // heartbeat: true,
       onConnected(ws) {
+        console.log("连了");
         // 必须设为 arraybuffer，否则二进制数据会被转为 Blob
         ws.binaryType = "arraybuffer";
         isConnected.value = true;
@@ -81,9 +100,22 @@ export function useXiaozhiWebSocket() {
           })
         );
       },
-      onDisconnected() {
+      onDisconnected(ws, event) {
+        console.log("[WS] 断开连接，Close 信息:", {
+          code: event.code, // 1000=正常关闭, 1005=未收到关闭帧, 1006=异常断开
+          reason: event.reason, // 关闭原因
+          wasClean: event.wasClean, // true=正常握手关闭, false=异常断开
+        });
         isConnected.value = false;
         isReady.value = false;
+      },
+      onError(ws, event) {
+        console.error("[WS] WebSocket 发生错误:", {
+          type: event.type,
+          target: ws.url,
+          readyState: ws.readyState,
+          timestamp: new Date().toISOString(),
+        });
       },
       onMessage(_ws, event) {
         handleRawData(event.data);
@@ -153,6 +185,10 @@ export function useXiaozhiWebSocket() {
   };
 
   const disconnect = () => {
+    console.log("[WS] disconnect() 被调用", {
+      timestamp: new Date().toISOString(),
+      stack: new Error().stack, // 打印调用栈，锁定谁调了它
+    });
     wsInstance?.close();
     isConnected.value = false;
     isReady.value = false;
@@ -160,6 +196,7 @@ export function useXiaozhiWebSocket() {
 
   // 重置状态并重新发起连接
   const reconnect = () => {
+    console.log("reconnect");
     if (wsInstance) {
       isReady.value = false;
       sessionId.value = "";

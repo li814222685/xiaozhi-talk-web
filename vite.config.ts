@@ -1,9 +1,10 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), basicSsl()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -14,10 +15,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/xiaozhi": {
-        target: "ws://192.168.31.30:8000/xiaozhi/v1/", //全套本地仿真服务
+        // target: "ws://192.168.31.30:8000/xiaozhi/v1/", //home全套本地仿真服务
+        // target: "ws://192.168.112.213:8000/xiaozhi/v1/", //xiaozhi-esp32 java服务
+        // target: "ws://192.168.112.213:8989", //本地go
         // target: "ws://192.168.112.213:5002", python本地代理
-        // target: "ws://192.168.112.254:8989",     服务器
-        //   // target: "ws://192.168.112.109:8989",   后端本地
+        target: "ws://192.168.112.254:8989", //服务器
+        // target: "ws://192.168.112.109:8989", //后端本地
         ws: true,
         changeOrigin: true,
       },

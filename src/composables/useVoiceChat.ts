@@ -12,6 +12,7 @@ export function useVoiceChat() {
   const isPlaying = ref(false);
   let ttsFinished = false;
   let endedTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingTextSend = false; // 标记是否刚发送了文字消息，用于忽略服务端 stt 回显
 
   const ws = useXiaozhiWebSocket();
   const recorder = useAudioRecorder();
@@ -40,10 +41,14 @@ export function useVoiceChat() {
         break;
 
       case "stt":
-        // 语音识别结果，作为用户消息展示
+        // 语音识别结果：文字输入已在本地添加，跳过服务端回显
         if (msg.text) {
-          chat.addUserMessage(msg.text);
-          chat.startWaiting();
+          if (pendingTextSend) {
+            pendingTextSend = false;
+          } else {
+            chat.addUserMessage(msg.text);
+            chat.startWaiting();
+          }
         }
         break;
 
@@ -106,10 +111,27 @@ export function useVoiceChat() {
     }
   };
 
-  // 发送文字消息（不本地添加，统一由 stt 回显渲染）
+  // 发送文字消息（本地立即添加用户消息，不依赖服务端 stt 回显）
   const handleSendText = (text: string) => {
-    if (!text.trim() || isRecording.value || isPlaying.value) return;
+    if (!text.trim() || isRecording.value) return;
+
+    // 如果正在播放，打断当前回复
+    if (isPlaying.value) {
+      ws.abort();
+      player.stop();
+      chat.finishAssistantMessage();
+      isPlaying.value = false;
+      ttsFinished = false;
+      if (endedTimer) {
+        clearTimeout(endedTimer);
+        endedTimer = null;
+      }
+    }
+
     player.resume();
+    chat.addUserMessage(text.trim());
+    chat.startWaiting();
+    pendingTextSend = true;
     ws.sendText(text.trim());
   };
 
@@ -121,11 +143,12 @@ export function useVoiceChat() {
     player.onEnded(() => {
       if (ttsFinished) {
         isPlaying.value = false;
+        // TTS 播放完毕，自动开启下一轮监听
+        ws.startListen("auto");
       } else {
         // 未收到 tts stop，启动超时兜底（1.5s 内无新音频则恢复）
         endedTimer = setTimeout(() => {
           isPlaying.value = false;
-          endedTimer = null;
         }, 1500);
       }
     });
@@ -154,6 +177,7 @@ export function useVoiceChat() {
     messages: chat.messages,
     init,
     reconnect,
+    disconnect: ws.disconnect,
     handleVoiceClick,
     handleSendText,
   };

@@ -116,14 +116,12 @@
               "
               rows="1"
               @keydown.enter.exact.prevent="onSendText"
-              :disabled="!isConnected || isRecording || isPlaying"
+              :disabled="!isConnected || isRecording"
             ></textarea>
 
             <button
               class="send-btn"
-              :disabled="
-                !isConnected || !inputText.trim() || isRecording || isPlaying
-              "
+              :disabled="!isConnected || !inputText.trim() || isRecording"
               @click="onSendText"
             >
               <i class="mdi mdi-send send-icon"></i>
@@ -227,6 +225,7 @@ const {
   messages,
   init,
   reconnect,
+  disconnect,
   handleVoiceClick,
   handleSendText,
 } = useVoiceChat();
