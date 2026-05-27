@@ -225,7 +225,6 @@ const {
   messages,
   init,
   reconnect,
-  disconnect,
   handleVoiceClick,
   handleSendText,
 } = useVoiceChat();
@@ -275,7 +274,7 @@ const shareApp = () => {
   copy(window.location.href);
 };
 
-// 组件挂载：预加载头像图片，初始化 WebSocket 连接
+// 组件挂载：初始化 WebSocket 连接，后台预加载头像图片
 onMounted(async () => {
   const permission = await navigator.permissions
     .query({ name: "microphone" as PermissionName })
@@ -284,20 +283,14 @@ onMounted(async () => {
     setMuted(true);
   }
 
-  const preload = [idleAvatar.value, speakingAvatar.value];
-  await Promise.all(
-    preload.map(
-      (src) =>
-        new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          img.src = src;
-        })
-    )
-  );
   assetsReady.value = true;
   init();
+
+  const preload = [idleAvatar.value, speakingAvatar.value];
+  preload.forEach((src) => {
+    const img = new Image();
+    img.src = src;
+  });
 });
 </script>
 
