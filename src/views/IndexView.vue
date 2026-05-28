@@ -140,6 +140,14 @@
     >
       <div class="settings-form">
         <div class="settings-field">
+          <label>服务器地址</label>
+          <ElInput
+            v-model="settingsForm.wsUrl"
+            placeholder="ws://192.168.112.254:8989/xiaozhi/v1/"
+          />
+          <span class="settings-hint">留空则使用默认地址（254环境）</span>
+        </div>
+        <div class="settings-field">
           <label>客户端 ID</label>
           <ElInput
             v-model="settingsForm.clientId"
@@ -251,12 +259,13 @@ const onSendText = () => {
 
 // 设置弹窗
 const showSettings = ref(false);
-const settingsForm = reactive({ clientId: "", deviceId: "", avatarIdx: 0 });
+const settingsForm = reactive({ clientId: "", deviceId: "", avatarIdx: 0, wsUrl: "" });
 
 const toggleMagic = () => {
   settingsForm.clientId = localStorage.getItem("xiaozhi_client_id") ?? "";
   settingsForm.deviceId = localStorage.getItem("xiaozhi_device_id") ?? "";
   settingsForm.avatarIdx = avatarIndex.value;
+  settingsForm.wsUrl = localStorage.getItem("xiaozhi_ws_url") ?? "";
   showSettings.value = true;
 };
 
@@ -265,6 +274,12 @@ const saveSettings = () => {
     localStorage.setItem("xiaozhi_client_id", settingsForm.clientId.trim());
   if (settingsForm.deviceId)
     localStorage.setItem("xiaozhi_device_id", settingsForm.deviceId.trim());
+  const trimmedUrl = settingsForm.wsUrl.trim();
+  if (trimmedUrl) {
+    localStorage.setItem("xiaozhi_ws_url", trimmedUrl);
+  } else {
+    localStorage.removeItem("xiaozhi_ws_url");
+  }
   avatarIndex.value = settingsForm.avatarIdx;
   showSettings.value = false;
 };

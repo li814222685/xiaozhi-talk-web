@@ -20,9 +20,12 @@ export function useVoiceChat() {
   const chat = useChatMessages();
 
   const isDev = import.meta.env.DEV;
-  const wsUrl =
-    import.meta.env.VITE_WS_URL ||
-    (isDev ? "/xiaozhi/v1/" : "ws://192.168.112.254:8989/xiaozhi/v1/");
+  const getWsUrl = () => {
+    const saved = localStorage.getItem("xiaozhi_ws_url");
+    if (saved) return saved;
+    if (isDev) return "/xiaozhi/v1/";
+    return "ws://192.168.112.254:8989/xiaozhi/v1/";
+  };
 
   // 服务端消息路由：根据 type 分发到对应处理逻辑
   const handleMessage = (msg: ServerMessage) => {
@@ -152,7 +155,7 @@ export function useVoiceChat() {
         }, 1500);
       }
     });
-    ws.connect(wsUrl);
+    ws.connect(getWsUrl());
   };
 
   const reconnect = () => {

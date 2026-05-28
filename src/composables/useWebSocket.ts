@@ -100,7 +100,7 @@ export function useXiaozhiWebSocket() {
           })
         );
       },
-      onDisconnected(ws, event) {
+      onDisconnected(_, event) {
         console.log("[WS] 断开连接，Close 信息:", {
           code: event.code, // 1000=正常关闭, 1005=未收到关闭帧, 1006=异常断开
           reason: event.reason, // 关闭原因

@@ -23,6 +23,12 @@ export function useAudioPlayer() {
     await decoder.ready;
 
     audioContext = new AudioContext({ sampleRate: 16000 });
+
+    if (!audioContext.audioWorklet) {
+      console.error("[AudioPlayer] AudioWorklet 不可用，需要 HTTPS 或 localhost 环境");
+      return;
+    }
+
     await audioContext.audioWorklet.addModule("/worklet/player-processor.js");
     playerNode = new AudioWorkletNode(audioContext, "player-processor");
     gainNode = audioContext.createGain();

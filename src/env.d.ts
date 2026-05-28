@@ -6,6 +6,11 @@ declare module "*.vue" {
   export default component;
 }
 
+declare module "*.webp" {
+  const src: string;
+  export default src;
+}
+
 interface ImportMetaEnv {
   readonly VITE_WS_URL?: string;
 }

@@ -38,7 +38,7 @@ onMounted(() => {
   setTimeout(() => {
     minTimeDone = true;
     tryHide();
-  }, 1500);
+  }, 300);
 });
 
 watch(

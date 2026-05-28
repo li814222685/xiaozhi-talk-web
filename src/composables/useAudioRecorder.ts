@@ -45,6 +45,11 @@ export function useAudioRecorder() {
 
     timestamp = 0;
 
+    if (!audioContext.audioWorklet) {
+      console.error("[AudioRecorder] AudioWorklet 不可用，需要 HTTPS 或 localhost 环境");
+      return;
+    }
+
     await audioContext.audioWorklet.addModule("/audio-processor.js");
 
     workletNode = new AudioWorkletNode(audioContext, "audio-processor");
