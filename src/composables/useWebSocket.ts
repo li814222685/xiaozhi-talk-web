@@ -43,8 +43,10 @@ export function useXiaozhiWebSocket() {
           isReady.value = true;
           send(
             JSON.stringify({
-              type: "wakeup",
               session_id: sessionId.value,
+              type: "listen",
+              state: "detect",
+              text: "hello",
             })
           );
         }
