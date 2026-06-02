@@ -41,6 +41,12 @@ export function useXiaozhiWebSocket() {
         if (msg.type === "hello") {
           sessionId.value = msg.session_id ?? "";
           isReady.value = true;
+          send(
+            JSON.stringify({
+              type: "wakeup",
+              session_id: sessionId.value,
+            })
+          );
         }
         dispatchMessage(msg as ServerMessage);
       } catch {
