@@ -21,6 +21,30 @@ export function useXiaozhiWebSocket() {
   const handlers: Set<MessageHandler> = new Set();
 
   let wsInstance: ReturnType<typeof useVueUseWebSocket> | null = null;
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+  const startHeartbeat = () => {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      if (isReady.value && sessionId.value) {
+        send(
+          JSON.stringify({
+            session_id: sessionId.value,
+            type: "listen",
+            state: "detect",
+            text: "",
+          })
+        );
+      }
+    }, 30_000);
+  };
+
+  const stopHeartbeat = () => {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  };
 
   // 消息分发：遍历所有已注册的 handler
   const dispatchMessage = (msg: ServerMessage) => {
@@ -80,19 +104,16 @@ export function useXiaozhiWebSocket() {
     };
 
     wsInstance = useVueUseWebSocket(fullUrl, {
-      // autoReconnect: {
-      //   retries: 5,
-      //   delay: 1000,
-      // },
+      autoReconnect: {
+        retries: Infinity,
+        delay: 3000,
+      },
       autoClose: false,
-      // heartbeat: true,
       onConnected(ws) {
-        console.log("连了");
-        // 必须设为 arraybuffer，否则二进制数据会被转为 Blob
+        console.log("[WS] 已连接");
         ws.binaryType = "arraybuffer";
         isConnected.value = true;
 
-        // 发送 hello 握手，告知服务端音频参数
         ws.send(
           JSON.stringify({
             type: "hello",
@@ -107,15 +128,19 @@ export function useXiaozhiWebSocket() {
             },
           })
         );
+
+        startHeartbeat();
       },
       onDisconnected(_, event) {
-        console.log("[WS] 断开连接，Close 信息:", {
-          code: event.code, // 1000=正常关闭, 1005=未收到关闭帧, 1006=异常断开
-          reason: event.reason, // 关闭原因
-          wasClean: event.wasClean, // true=正常握手关闭, false=异常断开
+        console.log("[WS] 断开连接:", {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
         });
+        stopHeartbeat();
         isConnected.value = false;
         isReady.value = false;
+        sessionId.value = "";
       },
       onError(ws, event) {
         console.error("[WS] WebSocket 发生错误:", {
@@ -193,10 +218,8 @@ export function useXiaozhiWebSocket() {
   };
 
   const disconnect = () => {
-    console.log("[WS] disconnect() 被调用", {
-      timestamp: new Date().toISOString(),
-      stack: new Error().stack, // 打印调用栈，锁定谁调了它
-    });
+    console.log("[WS] disconnect() 被调用");
+    stopHeartbeat();
     wsInstance?.close();
     isConnected.value = false;
     isReady.value = false;

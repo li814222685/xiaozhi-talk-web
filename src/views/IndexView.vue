@@ -208,8 +208,10 @@ const preprocessMarkdown = (text: string): string => {
   text = text.replace(/([^\n*\s])(\* )/g, "$1\n$2");
   // - 无序列表项
   text = text.replace(/([^\n\-\s])(- )/g, "$1\n$2");
-  // 数字有序列表项（前面紧跟中文标点时）
-  text = text.replace(/([\u3002\uff01\uff1f.!?])\s*(\d+\.\s)/g, "$1\n\n$2");
+  // 数字编号（1. 2. 等）：中文标点后跟编号 → 换行，并补空格让 marked 识别为列表
+  text = text.replace(/([\u3002\uff01\uff1f\uff0c\uff1b\uff1a.!?,;:])(\d+\.)(\S)/g, "$1\n\n$2 $3");
+  // [出处:...] 引用标记：确保前面换行
+  text = text.replace(/([^\n])(\[出处)/g, "$1\n\n$2");
   return text;
 };
 
