@@ -78,18 +78,17 @@
             :class="['message-wrapper', message.role]"
           >
             <div class="message-bubble">
-              <p class="message-content">
-                {{ message.content
-                }}<span
-                  v-if="
-                    message.role === 'assistant' &&
-                    index === messages.length - 1 &&
-                    isTyping
-                  "
-                  class="typing-cursor"
-                  >|</span
-                >
-              </p>
+              <div
+                class="message-content markdown-body"
+                v-html="
+                  renderMarkdown(message.content) +
+                  (message.role === 'assistant' &&
+                  index === messages.length - 1 &&
+                  isTyping
+                    ? '<span class=\'typing-cursor\'>|</span>'
+                    : '')
+                "
+              ></div>
             </div>
           </div>
         </div>
@@ -196,6 +195,7 @@ import {
   useClipboard,
   useLocalStorage,
 } from "@vueuse/core";
+import { marked } from "marked";
 import { useVoiceChat } from "@/composables/useVoiceChat";
 import { avatarSets, AVATAR_STORAGE_KEY } from "@/config/avatars";
 import AppLoader from "@/components/AppLoader.vue";
@@ -205,6 +205,17 @@ import "element-plus/es/components/input/style/css";
 import "element-plus/es/components/select/style/css";
 import "element-plus/es/components/option/style/css";
 import "element-plus/es/components/button/style/css";
+
+// Markdown 渲染：将纯文本转为 HTML
+const renderMarkdown = (content: string): string => {
+  if (!content) return "";
+  try {
+    return marked.parse(content, { breaks: true, gfm: true, async: false }) as string;
+  } catch (e) {
+    console.error("[Markdown] 渲染失败:", e);
+    return content;
+  }
+};
 
 // 暗色模式
 const isDark = useDark({
