@@ -80,14 +80,7 @@
             <div class="message-bubble">
               <div
                 class="message-content markdown-body"
-                v-html="
-                  renderMarkdown(message.content) +
-                  (message.role === 'assistant' &&
-                  index === messages.length - 1 &&
-                  isTyping
-                    ? '<span class=\'typing-cursor\'>|</span>'
-                    : '')
-                "
+                v-html="renderMarkdown(message.content)"
               ></div>
             </div>
           </div>
@@ -206,11 +199,25 @@ import "element-plus/es/components/select/style/css";
 import "element-plus/es/components/option/style/css";
 import "element-plus/es/components/button/style/css";
 
-// Markdown 渲染：将纯文本转为 HTML
+// 预处理：服务端 Markdown 可能缺少换行，块级标记挤在一行里无法识别
+const preprocessMarkdown = (text: string): string => {
+  // ### 标题：确保前面有空行，兼容 ###有空格 和 ###无空格 两种情况
+  text = text.replace(/([^\n])(#{1,6}) /g, "$1\n\n$2 ");
+  text = text.replace(/([^\n])(#{1,6})([^\s#])/g, "$1\n\n$2 $3");
+  // * 无序列表项：确保前面换行（排除 ** 加粗）
+  text = text.replace(/([^\n*\s])(\* )/g, "$1\n$2");
+  // - 无序列表项
+  text = text.replace(/([^\n\-\s])(- )/g, "$1\n$2");
+  // 数字有序列表项（前面紧跟中文标点时）
+  text = text.replace(/([\u3002\uff01\uff1f.!?])\s*(\d+\.\s)/g, "$1\n\n$2");
+  return text;
+};
+
+// Markdown 渲染：预处理 → marked 转 HTML
 const renderMarkdown = (content: string): string => {
   if (!content) return "";
   try {
-    return marked.parse(content, { breaks: true, gfm: true, async: false }) as string;
+    return marked.parse(preprocessMarkdown(content), { breaks: true, gfm: true, async: false }) as string;
   } catch (e) {
     console.error("[Markdown] 渲染失败:", e);
     return content;
