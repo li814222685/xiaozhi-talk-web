@@ -21,31 +21,6 @@ export function useXiaozhiWebSocket() {
   const handlers: Set<MessageHandler> = new Set();
 
   let wsInstance: ReturnType<typeof useVueUseWebSocket> | null = null;
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-
-  const startHeartbeat = () => {
-    stopHeartbeat();
-    heartbeatTimer = setInterval(() => {
-      if (isReady.value && sessionId.value) {
-        send(
-          JSON.stringify({
-            session_id: sessionId.value,
-            type: "listen",
-            state: "detect",
-            text: "",
-          })
-        );
-      }
-    }, 30_000);
-  };
-
-  const stopHeartbeat = () => {
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer);
-      heartbeatTimer = null;
-    }
-  };
-
   // 消息分发：遍历所有已注册的 handler
   const dispatchMessage = (msg: ServerMessage) => {
     handlers.forEach((handler) => handler(msg));
@@ -87,22 +62,6 @@ export function useXiaozhiWebSocket() {
       ? `${url}&device-id=${deviceId.value}&client-id=${clientId.value}`
       : `${url}?device-id=${deviceId.value}&client-id=${clientId.value}`;
 
-    // 拦截原生 WebSocket.close() 方法，记录所有关闭操作
-    const originalClose = WebSocket.prototype.close;
-    WebSocket.prototype.close = function (
-      this: WebSocket,
-      code?: number,
-      reason?: string
-    ) {
-      console.log("[WS] WebSocket.close() 被调用!", {
-        readyState: this.readyState,
-        code: code ?? "未指定",
-        reason: reason ?? "无",
-        stack: new Error().stack,
-      });
-      return originalClose.apply(this, [code, reason]);
-    };
-
     wsInstance = useVueUseWebSocket(fullUrl, {
       autoReconnect: {
         retries: Infinity,
@@ -129,7 +88,6 @@ export function useXiaozhiWebSocket() {
           })
         );
 
-        startHeartbeat();
       },
       onDisconnected(_, event) {
         console.log("[WS] 断开连接:", {
@@ -137,7 +95,6 @@ export function useXiaozhiWebSocket() {
           reason: event.reason,
           wasClean: event.wasClean,
         });
-        stopHeartbeat();
         isConnected.value = false;
         isReady.value = false;
         sessionId.value = "";
@@ -219,7 +176,6 @@ export function useXiaozhiWebSocket() {
 
   const disconnect = () => {
     console.log("[WS] disconnect() 被调用");
-    stopHeartbeat();
     wsInstance?.close();
     isConnected.value = false;
     isReady.value = false;

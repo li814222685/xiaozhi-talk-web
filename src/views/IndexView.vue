@@ -73,7 +73,7 @@
           </div>
 
           <div
-            v-for="(message, index) in messages"
+            v-for="message in messages"
             :key="message.id"
             :class="['message-wrapper', message.role]"
           >
@@ -208,8 +208,9 @@ const preprocessMarkdown = (text: string): string => {
   text = text.replace(/([^\n*\s])(\* )/g, "$1\n$2");
   // - 无序列表项
   text = text.replace(/([^\n\-\s])(- )/g, "$1\n$2");
-  // 数字编号（1. 2. 等）：中文标点后跟编号 → 换行，并补空格让 marked 识别为列表
-  text = text.replace(/([\u3002\uff01\uff1f\uff0c\uff1b\uff1a.!?,;:])(\d+\.)(\S)/g, "$1\n\n$2 $3");
+  // 数字编号（1. 2. 等）：前面有任意非换行字符时 → 换行，并补空格让 marked 识别为列表
+  // [^\d\s\n] 排除小数（如 3.14）和已有换行的情况
+  text = text.replace(/([^\n])\s*(\d+\.)\s*([^\d\s\n])/g, "$1\n\n$2 $3");
   // [出处:...] 引用标记：确保前面换行
   text = text.replace(/([^\n])(\[出处)/g, "$1\n\n$2");
   return text;
@@ -249,7 +250,6 @@ const {
   isPlaying,
   isMuted,
   setMuted,
-  isTyping,
   messages,
   init,
   reconnect,
