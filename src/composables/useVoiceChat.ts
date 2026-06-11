@@ -5,19 +5,26 @@ import { useXiaozhiWebSocket } from "./useWebSocket";
 import { useAudioRecorder } from "./useAudioRecorder";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useChatMessages } from "./useChatMessages";
+import { useTalkingHead } from "./useTalkingHead";
 import type { ServerMessage } from "@/types/messages";
+import { OpusDecoder } from "opus-decoder";
 
-export function useVoiceChat() {
+export function useVoiceChat(avatarContainerRef: () => HTMLElement | null) {
   const isRecording = ref(false);
   const isPlaying = ref(false);
   let ttsFinished = false;
   let endedTimer: ReturnType<typeof setTimeout> | null = null;
-  let pendingTextSend = false; // 标记是否刚发送了文字消息，用于忽略服务端 stt 回显
+  let pendingTextSend = false;
+  let streamAudioLogOnce = false;
 
   const ws = useXiaozhiWebSocket();
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
   const chat = useChatMessages();
+  const talkingHead = useTalkingHead(avatarContainerRef);
+
+  // 独立的 opus decoder 给 TalkingHead 用（原有 player 内部也有一个）
+  let lipsyncDecoder: OpusDecoder | null = null;
 
   const isDev = import.meta.env.DEV;
   const getWsUrl = () => {
@@ -41,6 +48,20 @@ export function useVoiceChat() {
           ttsFinished = false;
         }
         player.play(msg.data);
+
+        // 解码并喂给 TalkingHead 做 lip sync
+        if (lipsyncDecoder && talkingHead.isReady.value) {
+          const opusFrame = new Uint8Array(msg.data);
+          const { channelData, samplesDecoded } =
+            lipsyncDecoder.decodeFrame(opusFrame);
+          if (samplesDecoded > 0 && channelData[0]) {
+            if (!streamAudioLogOnce) {
+              console.log("[VoiceChat] First audio frame to TalkingHead, samples:", samplesDecoded);
+              streamAudioLogOnce = true;
+            }
+            talkingHead.streamAudio(channelData[0]);
+          }
+        }
         break;
 
       case "stt":
@@ -59,9 +80,11 @@ export function useVoiceChat() {
         if (msg.state === "start") {
           player.resume();
           ttsFinished = false;
+          talkingHead.streamStart();
         } else if (msg.state === "stop") {
           ttsFinished = true;
           chat.finishAssistantMessage();
+          talkingHead.streamEnd();
         } else if (msg.state === "sentence_start" && msg.text) {
           if (chat.hasCurrentAssistant()) {
             chat.appendToAssistant(msg.text);
@@ -122,6 +145,7 @@ export function useVoiceChat() {
     if (isPlaying.value) {
       ws.abort();
       player.stop();
+      talkingHead.streamInterrupt();
       chat.finishAssistantMessage();
       isPlaying.value = false;
       ttsFinished = false;
@@ -142,6 +166,14 @@ export function useVoiceChat() {
   const init = async () => {
     ws.onMessage(handleMessage);
     await player.init();
+
+    // 初始化 TalkingHead lip sync
+    await talkingHead.init();
+
+    // 初始化独立的 opus decoder 用于 lip sync 分析
+    lipsyncDecoder = new OpusDecoder({ sampleRate: 16000, channels: 1 });
+    await lipsyncDecoder.ready;
+
     // 音频队列播放完毕时判断是否恢复状态
     player.onEnded(() => {
       if (ttsFinished) {
@@ -166,6 +198,11 @@ export function useVoiceChat() {
   tryOnScopeDispose(() => {
     recorder.stop();
     player.stop();
+    talkingHead.destroy();
+    if (lipsyncDecoder) {
+      lipsyncDecoder.free();
+      lipsyncDecoder = null;
+    }
     ws.disconnect();
   });
 
@@ -178,6 +215,7 @@ export function useVoiceChat() {
     setMuted: player.setMuted,
     isTyping: chat.isTyping,
     messages: chat.messages,
+    isTalkingHeadReady: talkingHead.isReady,
     init,
     reconnect,
     disconnect: ws.disconnect,

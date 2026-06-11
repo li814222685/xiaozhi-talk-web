@@ -56,12 +56,14 @@
 
     <div class="main-wrapper">
       <aside class="avatar-aside">
-        <div class="avatar-container">
-          <img
-            :src="isPlaying ? speakingAvatar : idleAvatar"
-            class="avatar-image"
-            alt="Avatar"
-          />
+        <div class="avatar-container" ref="avatarContainerEl">
+          <div v-if="!isTalkingHeadReady" class="avatar-fallback">
+            <img
+              :src="isPlaying ? speakingAvatar : idleAvatar"
+              class="avatar-image"
+              alt="Avatar"
+            />
+          </div>
         </div>
       </aside>
 
@@ -199,6 +201,8 @@ import "element-plus/es/components/select/style/css";
 import "element-plus/es/components/option/style/css";
 import "element-plus/es/components/button/style/css";
 
+const avatarContainerEl = ref<HTMLElement | null>(null);
+
 // 预处理：服务端 Markdown 可能缺少换行，块级标记挤在一行里无法识别
 const preprocessMarkdown = (text: string): string => {
   // ### 标题：确保前面有空行，兼容 ###有空格 和 ###无空格 两种情况
@@ -251,11 +255,12 @@ const {
   isMuted,
   setMuted,
   messages,
+  isTalkingHeadReady,
   init,
   reconnect,
   handleVoiceClick,
   handleSendText,
-} = useVoiceChat();
+} = useVoiceChat(() => avatarContainerEl.value);
 
 const toggleMute = () => setMuted(!isMuted.value);
 
