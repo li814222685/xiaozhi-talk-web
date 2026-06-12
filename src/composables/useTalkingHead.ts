@@ -21,7 +21,7 @@ export function useTalkingHead(containerRef: () => HTMLElement | null) {
       lipsyncModules: [],
       cameraView: "head",
       cameraDistance: 0,
-      modelFPS: 30,
+      modelFPS: 60,
       lightAmbientIntensity: 2.5,
       lightDirectIntensity: 15,
       pcmSampleRate: 16000,
@@ -104,7 +104,12 @@ export function useTalkingHead(containerRef: () => HTMLElement | null) {
 
   const streamStart = async () => {
     if (!head || !isReady.value) {
-      console.warn("[TalkingHead] streamStart skipped: head=", !!head, "isReady=", isReady.value);
+      console.warn(
+        "[TalkingHead] streamStart skipped: head=",
+        !!head,
+        "isReady=",
+        isReady.value
+      );
       return;
     }
 

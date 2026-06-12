@@ -20,6 +20,7 @@ export function useXiaozhiWebSocket() {
 
   const handlers: Set<MessageHandler> = new Set();
 
+  let isFirstConnect = true;
   let wsInstance: ReturnType<typeof useVueUseWebSocket> | null = null;
   // 消息分发：遍历所有已注册的 handler
   const dispatchMessage = (msg: ServerMessage) => {
@@ -40,14 +41,17 @@ export function useXiaozhiWebSocket() {
         if (msg.type === "hello") {
           sessionId.value = msg.session_id ?? "";
           isReady.value = true;
-          send(
-            JSON.stringify({
-              session_id: sessionId.value,
-              type: "listen",
-              state: "detect",
-              text: "hello",
-            })
-          );
+          if (isFirstConnect) {
+            isFirstConnect = false;
+            send(
+              JSON.stringify({
+                session_id: sessionId.value,
+                type: "listen",
+                state: "detect",
+                text: "hello",
+              })
+            );
+          }
         }
         dispatchMessage(msg as ServerMessage);
       } catch {
@@ -185,6 +189,7 @@ export function useXiaozhiWebSocket() {
   const reconnect = () => {
     console.log("reconnect");
     if (wsInstance) {
+      isFirstConnect = true;
       isReady.value = false;
       sessionId.value = "";
       wsInstance.open();
