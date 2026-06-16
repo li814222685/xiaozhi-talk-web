@@ -1,6 +1,6 @@
 # TalkingHead Lip Sync 技术设计文档
 
-## 1. 方案概述
+## 1. 方案概述x
 
 ### 架构
 
@@ -297,3 +297,8 @@ headAudio.onvalue = (key, value) => {
 1. **MuseTalk/Wav2Lip 服务端渲染** — 真人级别口型精度，需要 GPU 服务器
 2. **Unity WebGL 导出** — 用 Unity 的 SALSA LipSync 获得更好的过渡质量
 3. **端侧 AI 模型** — WebNN / WASM 跑轻量级 viseme 推理模型
+
+- 大萨达圣诞节快乐打算
+- 撒旦撒旦金坷垃收到记录卡打算
+- 大萨达大声道
+- 
