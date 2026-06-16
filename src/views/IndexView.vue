@@ -194,7 +194,6 @@ import { marked } from "marked";
 import { useVoiceChat } from "@/composables/useVoiceChat";
 import { avatarSets, AVATAR_STORAGE_KEY } from "@/config/avatars";
 import AppLoader from "@/components/AppLoader.vue";
-import { ElDialog, ElInput, ElSelect, ElOption, ElButton } from "element-plus";
 import "element-plus/es/components/dialog/style/css";
 import "element-plus/es/components/input/style/css";
 import "element-plus/es/components/select/style/css";

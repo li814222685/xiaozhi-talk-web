@@ -11,6 +11,7 @@ export function useTalkingHead(containerRef: () => HTMLElement | null) {
 
   const AVATAR_URL = "/avatars/avatar.glb";
 
+//初始化TalkingHead
   const init = async () => {
     const container = containerRef();
     if (!container) return;
@@ -61,13 +62,13 @@ export function useTalkingHead(containerRef: () => HTMLElement | null) {
     await audioCtx.audioWorklet.addModule("/worklet/playback-worklet.js");
     (head as any).workletLoaded = true;
     console.log("[TalkingHead] playback-worklet registered");
-
+    //注册headworklet处理器，负责MFCC分析+ viseme分类
     await audioCtx.audioWorklet.addModule("/headaudio/headworklet.min.mjs");
     console.log("[TalkingHead] headworklet registered");
 
     const mod = await loadHeadAudioModule();
     const HeadAudioClass = mod.HeadAudio;
-
+    //实例化HeadAudio
     headAudio = new HeadAudioClass(audioCtx, {
       processorOptions: { visemeEventsEnabled: true },
       parameterData: {
@@ -76,11 +77,18 @@ export function useTalkingHead(containerRef: () => HTMLElement | null) {
       },
     });
     console.log("[TalkingHead] HeadAudio created");
-
+    //加载二进制模型文件
     await headAudio.loadModel("/headaudio/model-en-mixed.bin");
     console.log("[TalkingHead] model loaded");
 
     (head as any).audioAnalyzerNode.connect(headAudio);
+    /**headWorklet 线程内的算法
+     * 1.预加重：高频增强，让辅音特征更明显
+     * 2.多相滤波器降采样：如果AudioContext采样率 > 16kHz,降到16kHz
+     * 3.存入环形缓冲区（512samples，256hop）
+     * 4.当缓存区满512Samples时，触发一次分析，MFCC提取+VAD门控。 使用mfcc分析结果，获取当前音频对应的一个viseme分类
+     * 5.通知主线程
+     */
     console.log("[TalkingHead] HeadAudio connected to audioAnalyzerNode");
 
     head.audioSpeechGainNode.gain.value = 0;
