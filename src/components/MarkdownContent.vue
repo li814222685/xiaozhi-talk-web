@@ -8,7 +8,7 @@ import MarkdownIt from "markdown-it";
 
 const md = new MarkdownIt({
   html: false,
-  breaks: true,
+  breaks: false,
   linkify: true,
   typographer: true,
 });
@@ -57,6 +57,10 @@ const rendered = computed(() => {
   }
   :deep(li) {
     margin: 0.2em 0;
+
+    > p {
+      margin: 0;
+    }
   }
 
   :deep(blockquote) {
