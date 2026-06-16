@@ -94,6 +94,7 @@ export function useChatMessages() {
       return;
     }
 
+    typeQueue.push("\n");
     for (const char of text) {
       typeQueue.push(char);
     }

@@ -78,10 +78,10 @@
             :class="['message-wrapper', message.role]"
           >
             <div class="message-bubble">
-              <div
-                class="message-content markdown-body"
-                v-html="renderMarkdown(message.content)"
-              ></div>
+              <MarkdownContent
+                class="message-content"
+                :content="message.content"
+              />
             </div>
           </div>
         </div>
@@ -188,8 +188,8 @@ import {
   useClipboard,
   useLocalStorage,
 } from "@vueuse/core";
-import { marked } from "marked";
 import { useVoiceChat } from "@/composables/useVoiceChat";
+import MarkdownContent from "@/components/MarkdownContent.vue";
 import { avatarSets, AVATAR_STORAGE_KEY } from "@/config/avatars";
 import AppLoader from "@/components/AppLoader.vue";
 import { ElDialog, ElInput, ElSelect, ElOption, ElButton } from "element-plus";
@@ -198,34 +198,6 @@ import "element-plus/es/components/input/style/css";
 import "element-plus/es/components/select/style/css";
 import "element-plus/es/components/option/style/css";
 import "element-plus/es/components/button/style/css";
-
-// 预处理：服务端 Markdown 可能缺少换行，块级标记挤在一行里无法识别
-const preprocessMarkdown = (text: string): string => {
-  // ### 标题：确保前面有空行，兼容 ###有空格 和 ###无空格 两种情况
-  text = text.replace(/([^\n])(#{1,6}) /g, "$1\n\n$2 ");
-  text = text.replace(/([^\n])(#{1,6})([^\s#])/g, "$1\n\n$2 $3");
-  // * 无序列表项：确保前面换行（排除 ** 加粗）
-  text = text.replace(/([^\n*\s])(\* )/g, "$1\n$2");
-  // - 无序列表项
-  text = text.replace(/([^\n\-\s])(- )/g, "$1\n$2");
-  // 数字编号（1. 2. 等）：前面有任意非换行字符时 → 换行，并补空格让 marked 识别为列表
-  // [^\d\s\n] 排除小数（如 3.14）和已有换行的情况
-  text = text.replace(/([^\n])\s*(\d+\.)\s*([^\d\s\n])/g, "$1\n\n$2 $3");
-  // [出处:...] 引用标记：确保前面换行
-  text = text.replace(/([^\n])(\[出处)/g, "$1\n\n$2");
-  return text;
-};
-
-// Markdown 渲染：预处理 → marked 转 HTML
-const renderMarkdown = (content: string): string => {
-  if (!content) return "";
-  try {
-    return marked.parse(preprocessMarkdown(content), { breaks: true, gfm: true, async: false }) as string;
-  } catch (e) {
-    console.error("[Markdown] 渲染失败:", e);
-    return content;
-  }
-};
 
 // 暗色模式
 const isDark = useDark({

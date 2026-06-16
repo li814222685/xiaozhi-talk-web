@@ -63,10 +63,7 @@ export function useXiaozhiWebSocket() {
       : `${url}?device-id=${deviceId.value}&client-id=${clientId.value}`;
 
     wsInstance = useVueUseWebSocket(fullUrl, {
-      autoReconnect: {
-        retries: Infinity,
-        delay: 3000,
-      },
+      autoReconnect: false,
       autoClose: false,
       onConnected(ws) {
         console.log("[WS] 已连接");
