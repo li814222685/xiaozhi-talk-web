@@ -79,6 +79,11 @@ export function useAudioPlayer() {
     isPlaying.value = true;
   };
 
+  // 返回当前 audioContext 时钟（秒）。用于 viseme driver 推算播放进度。
+  // worklet 入队后主线程拿不到逐帧回调，只能靠时钟推算。这里取的是入队时刻，
+  // 与真实发声有一段 worklet 队列延迟，需要在 visemeDriver 层面感知。
+  const getCurrentTime = (): number => audioContext?.currentTime ?? 0;
+
   const setMuted = (muted: boolean) => {
     isMuted.value = muted;
     if (gainNode) {
@@ -116,5 +121,5 @@ export function useAudioPlayer() {
 
   tryOnScopeDispose(destroy);
 
-  return { isPlaying, isMuted, setMuted, init, resume, play, stop, onEnded };
+  return { isPlaying, isMuted, setMuted, init, resume, play, stop, onEnded, getCurrentTime };
 }

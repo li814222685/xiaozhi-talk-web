@@ -20,6 +20,7 @@ export function useXiaozhiWebSocket() {
 
   const handlers: Set<MessageHandler> = new Set();
 
+  let isFirstConnect = true;
   let wsInstance: ReturnType<typeof useVueUseWebSocket> | null = null;
   // 消息分发：遍历所有已注册的 handler
   const dispatchMessage = (msg: ServerMessage) => {
@@ -40,14 +41,17 @@ export function useXiaozhiWebSocket() {
         if (msg.type === "hello") {
           sessionId.value = msg.session_id ?? "";
           isReady.value = true;
-          send(
-            JSON.stringify({
-              session_id: sessionId.value,
-              type: "listen",
-              state: "detect",
-              text: "hello",
-            })
-          );
+          if (isFirstConnect) {
+            isFirstConnect = false;
+            send(
+              JSON.stringify({
+                session_id: sessionId.value,
+                type: "listen",
+                state: "detect",
+                text: "hello",
+              })
+            );
+          }
         }
         dispatchMessage(msg as ServerMessage);
       } catch {
@@ -63,7 +67,10 @@ export function useXiaozhiWebSocket() {
       : `${url}?device-id=${deviceId.value}&client-id=${clientId.value}`;
 
     wsInstance = useVueUseWebSocket(fullUrl, {
-      autoReconnect: false,
+      autoReconnect: {
+        retries: Infinity,
+        delay: 3000,
+      },
       autoClose: false,
       onConnected(ws) {
         console.log("[WS] 已连接");
@@ -75,7 +82,7 @@ export function useXiaozhiWebSocket() {
             type: "hello",
             version: 1,
             transport: "websocket",
-            features: { mcp: false },
+            features: { mcp: false, lipsync: true },
             audio_params: {
               format: "opus",
               sample_rate: 16000,
@@ -182,6 +189,7 @@ export function useXiaozhiWebSocket() {
   const reconnect = () => {
     console.log("reconnect");
     if (wsInstance) {
+      isFirstConnect = true;
       isReady.value = false;
       sessionId.value = "";
       wsInstance.open();

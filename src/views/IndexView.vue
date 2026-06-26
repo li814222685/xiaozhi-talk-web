@@ -34,6 +34,9 @@
               :class="isMuted ? 'mdi-volume-off' : 'mdi-volume-high'"
             ></i>
           </button>
+          <button class="btn-icon" @click="toggleDebugPanel" title="Lip Sync 评测">
+            <i class="mdi mdi-chart-box icon"></i>
+          </button>
           <button class="btn-icon" @click="toggleMagic">
             <i class="mdi mdi-auto-fix icon"></i>
           </button>
@@ -56,12 +59,22 @@
 
     <div class="main-wrapper">
       <aside class="avatar-aside">
-        <div class="avatar-container">
-          <img
-            :src="isPlaying ? speakingAvatar : idleAvatar"
-            class="avatar-image"
-            alt="Avatar"
-          />
+        <div class="avatar-container" ref="avatarContainerEl">
+          <div v-if="!isTalkingHeadReady" class="avatar-fallback">
+            <img
+              :src="isPlaying ? speakingAvatar : idleAvatar"
+              class="avatar-image"
+              alt="Avatar"
+            />
+          </div>
+          <button
+            v-if="isTalkingHeadReady"
+            class="camera-toggle"
+            @click="toggleCamera"
+          >
+            <i class="mdi mdi-camera"></i>
+            {{ cameraView === 'head' ? 'Full' : 'Head' }}
+          </button>
         </div>
       </aside>
 
@@ -78,10 +91,10 @@
             :class="['message-wrapper', message.role]"
           >
             <div class="message-bubble">
-              <MarkdownContent
-                class="message-content"
-                :content="message.content"
-              />
+              <div
+                class="message-content markdown-body"
+                v-html="renderMarkdown(message.content)"
+              ></div>
             </div>
           </div>
         </div>
@@ -176,6 +189,22 @@
         <ElButton type="primary" @click="saveSettings">保存</ElButton>
       </template>
     </ElDialog>
+
+    <!-- Lip Sync 评测浮窗 -->
+    <LipSyncDebugPanel
+      :enabled="showDebugPanel"
+      :realtime="lipsyncMetrics.realtime"
+      :sentences="lipsyncMetrics.sentences.value"
+      :global-stats="lipsyncMetrics.globalStats.value"
+      :bench-corpus-names="bench.corpusNames.value"
+      :bench-is-running="bench.isRunning.value"
+      :bench-progress="bench.progress.value"
+      :bench-runs="bench.runs.value"
+      @close="toggleDebugPanel"
+      @bench-start="(c) => onBenchStart(c)"
+      @bench-stop="bench.stopRun()"
+      @bench-export="bench.downloadResults()"
+    />
   </div>
 </template>
 
@@ -188,16 +217,54 @@ import {
   useClipboard,
   useLocalStorage,
 } from "@vueuse/core";
+import { marked } from "marked";
 import { useVoiceChat } from "@/composables/useVoiceChat";
-import MarkdownContent from "@/components/MarkdownContent.vue";
+import { useLipSyncBench } from "@/composables/useLipSyncBench";
 import { avatarSets, AVATAR_STORAGE_KEY } from "@/config/avatars";
 import AppLoader from "@/components/AppLoader.vue";
-import { ElDialog, ElInput, ElSelect, ElOption, ElButton } from "element-plus";
+import LipSyncDebugPanel from "@/components/LipSyncDebugPanel.vue";
+import {
+  ElDialog,
+  ElInput,
+  ElSelect,
+  ElOption,
+  ElButton,
+} from "element-plus";
 import "element-plus/es/components/dialog/style/css";
 import "element-plus/es/components/input/style/css";
 import "element-plus/es/components/select/style/css";
 import "element-plus/es/components/option/style/css";
 import "element-plus/es/components/button/style/css";
+
+const avatarContainerEl = ref<HTMLElement | null>(null);
+
+// 预处理：服务端 Markdown 可能缺少换行，块级标记挤在一行里无法识别
+const preprocessMarkdown = (text: string): string => {
+  // ### 标题：确保前面有空行，兼容 ###有空格 和 ###无空格 两种情况
+  text = text.replace(/([^\n])(#{1,6}) /g, "$1\n\n$2 ");
+  text = text.replace(/([^\n])(#{1,6})([^\s#])/g, "$1\n\n$2 $3");
+  // * 无序列表项：确保前面换行（排除 ** 加粗）
+  text = text.replace(/([^\n*\s])(\* )/g, "$1\n$2");
+  // - 无序列表项
+  text = text.replace(/([^\n\-\s])(- )/g, "$1\n$2");
+  // 数字编号（1. 2. 等）：前面有任意非换行字符时 → 换行，并补空格让 marked 识别为列表
+  // [^\d\s\n] 排除小数（如 3.14）和已有换行的情况
+  text = text.replace(/([^\n])\s*(\d+\.)\s*([^\d\s\n])/g, "$1\n\n$2 $3");
+  // [出处:...] 引用标记：确保前面换行
+  text = text.replace(/([^\n])(\[出处)/g, "$1\n\n$2");
+  return text;
+};
+
+// Markdown 渲染：预处理 → marked 转 HTML
+const renderMarkdown = (content: string): string => {
+  if (!content) return "";
+  try {
+    return marked.parse(preprocessMarkdown(content), { breaks: true, gfm: true, async: false }) as string;
+  } catch (e) {
+    console.error("[Markdown] 渲染失败:", e);
+    return content;
+  }
+};
 
 // 暗色模式
 const isDark = useDark({
@@ -222,14 +289,54 @@ const {
   isPlaying,
   isMuted,
   setMuted,
+  isTtsFinished,
+  lastAudioAt,
   messages,
+  isTalkingHeadReady,
+  lipsyncMetrics,
+  setCamera,
   init,
   reconnect,
   handleVoiceClick,
   handleSendText,
-} = useVoiceChat();
+} = useVoiceChat(() => avatarContainerEl.value);
+
+// Lip Sync 评测面板
+const showDebugPanel = ref(false);
+const bench = useLipSyncBench({
+  sendText: handleSendText,
+  isPlaying: () => isPlaying.value,
+  isTtsFinished: () => isTtsFinished.value,
+  lastAudioAt: () => lastAudioAt.value,
+});
+
+// 镜头切换
+const cameraView = ref<"head" | "full">("full");
+const toggleCamera = () => {
+  cameraView.value = cameraView.value === "head" ? "full" : "head";
+  setCamera(cameraView.value);
+};
+
+const toggleDebugPanel = () => {
+  showDebugPanel.value = !showDebugPanel.value;
+  if (showDebugPanel.value && !lipsyncMetrics.enabled.value) {
+    lipsyncMetrics.toggle();
+  }
+  if (showDebugPanel.value) {
+    lipsyncMetrics.setOnSentenceArchived((m) => bench.collectSentence(m));
+  } else {
+    lipsyncMetrics.setOnSentenceArchived(null);
+  }
+};
+
+// 开始批测前清空上一轮句子列表，避免不同语料的结果在面板里混着显示
+const onBenchStart = (corpus: string) => {
+  lipsyncMetrics.reset();
+  bench.startRun(corpus);
+};
 
 const toggleMute = () => setMuted(!isMuted.value);
+
 
 const avatarIndex = useLocalStorage(AVATAR_STORAGE_KEY, 0);
 const idleAvatar = computed(
@@ -303,4 +410,24 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 @use "@/views/IndexView.scss";
+
+.camera-toggle {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s;
+  &:hover {
+    background: rgba(0, 0, 0, 0.4);
+  }
+}
 </style>

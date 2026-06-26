@@ -5,19 +5,31 @@ import { useXiaozhiWebSocket } from "./useWebSocket";
 import { useAudioRecorder } from "./useAudioRecorder";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useChatMessages } from "./useChatMessages";
+import { useTalkingHead } from "./useTalkingHead";
+import { useVisemeDriver } from "./useVisemeDriver";
+import { useLipSyncMetrics } from "./useLipSyncMetrics";
 import type { ServerMessage } from "@/types/messages";
 
-export function useVoiceChat() {
+export function useVoiceChat(avatarContainerRef: () => HTMLElement | null) {
   const isRecording = ref(false);
   const isPlaying = ref(false);
-  let ttsFinished = false;
+  const ttsFinished = ref(false);
+  // 最后一帧音频"入队"时刻（ms）。批测据此判断整段播报是否真正静默，
+  // 比依赖 isPlaying 的 true/false 边沿可靠（边沿会被句间排空、短回复错过）。
+  const lastAudioAt = ref(0);
   let endedTimer: ReturnType<typeof setTimeout> | null = null;
-  let pendingTextSend = false; // 标记是否刚发送了文字消息，用于忽略服务端 stt 回显
+  let pendingTextSends = 0;
+  let audioFrameCount = 0;
 
   const ws = useXiaozhiWebSocket();
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
   const chat = useChatMessages();
+  const talkingHead = useTalkingHead(avatarContainerRef);
+  const visemeDriver = useVisemeDriver({
+    getCurrentTime: () => player.getCurrentTime(),
+  });
+  const lipsyncMetrics = useLipSyncMetrics();
 
   const isDev = import.meta.env.DEV;
   const getWsUrl = () => {
@@ -38,16 +50,37 @@ export function useVoiceChat() {
         }
         if (!isPlaying.value) {
           isPlaying.value = true;
-          ttsFinished = false;
+          ttsFinished.value = false;
         }
+        lastAudioAt.value = Date.now();
         player.play(msg.data);
+
+        // 每帧音频都驱动一次 visemeDriver，让嘴型按 player 的时钟前进。
+        // 真实音频由 player 播放；TalkingHead 走空 PCM（gain 已置 0 不出声），
+        // 只为驱动其内部 update 回调做 morph 插值。
+        if (talkingHead.isReady.value && visemeDriver.isActive.value) {
+          audioFrameCount++;
+          const diag = visemeDriver.tickWithDiag();
+          const silentPcm = new Float32Array(960); // 60ms @ 16kHz
+          talkingHead.streamAudioWithViseme(
+            silentPcm,
+            diag.viseme,
+            diag.intensity
+          );
+          lipsyncMetrics.onFrame(
+            audioFrameCount,
+            diag.viseme,
+            diag.progress,
+            diag.totalFrames
+          );
+        }
         break;
 
       case "stt":
         // 语音识别结果：文字输入已在本地添加，跳过服务端回显
         if (msg.text) {
-          if (pendingTextSend) {
-            pendingTextSend = false;
+          if (pendingTextSends > 0) {
+            pendingTextSends--;
           } else {
             chat.addUserMessage(msg.text);
             chat.startWaiting();
@@ -58,16 +91,35 @@ export function useVoiceChat() {
       case "tts":
         if (msg.state === "start") {
           player.resume();
-          ttsFinished = false;
+          ttsFinished.value = false;
+          talkingHead.streamStart();
         } else if (msg.state === "stop") {
-          ttsFinished = true;
+          ttsFinished.value = true;
           chat.finishAssistantMessage();
+          talkingHead.streamEnd();
+          visemeDriver.reset();
         } else if (msg.state === "sentence_start" && msg.text) {
           if (chat.hasCurrentAssistant()) {
             chat.appendToAssistant(msg.text);
           } else {
             chat.startAssistantMessage(msg.text);
           }
+          // 服务端优先下发 timedVisemes（精确时序），否则退化用 visemes 数组
+          visemeDriver.onSentenceStart(msg.visemes, msg.timedVisemes);
+          audioFrameCount = 0;
+          const state = visemeDriver.getState();
+          if (state.timedVisemes.length > 0 || state.visemes.length > 0) {
+            lipsyncMetrics.onSentenceStart(
+              msg.text || "",
+              state.timedVisemes.length > 0
+                ? state.timedVisemes.map((v) => v.shape)
+                : state.visemes,
+              state.totalFrames
+            );
+          }
+        } else if (msg.state === "sentence_end") {
+          visemeDriver.onSentenceEnd();
+          lipsyncMetrics.onSentenceEnd();
         }
         break;
 
@@ -122,9 +174,11 @@ export function useVoiceChat() {
     if (isPlaying.value) {
       ws.abort();
       player.stop();
+      talkingHead.streamInterrupt();
+      visemeDriver.reset();
       chat.finishAssistantMessage();
       isPlaying.value = false;
-      ttsFinished = false;
+      ttsFinished.value = false;
       if (endedTimer) {
         clearTimeout(endedTimer);
         endedTimer = null;
@@ -134,7 +188,7 @@ export function useVoiceChat() {
     player.resume();
     chat.addUserMessage(text.trim());
     chat.startWaiting();
-    pendingTextSend = true;
+    pendingTextSends++;
     ws.sendText(text.trim());
   };
 
@@ -142,9 +196,13 @@ export function useVoiceChat() {
   const init = async () => {
     ws.onMessage(handleMessage);
     await player.init();
+
+    // 初始化 TalkingHead lip sync
+    await talkingHead.init();
+
     // 音频队列播放完毕时判断是否恢复状态
     player.onEnded(() => {
-      if (ttsFinished) {
+      if (ttsFinished.value) {
         isPlaying.value = false;
         // TTS 播放完毕，自动开启下一轮监听
         ws.startListen("auto");
@@ -166,6 +224,7 @@ export function useVoiceChat() {
   tryOnScopeDispose(() => {
     recorder.stop();
     player.stop();
+    talkingHead.destroy();
     ws.disconnect();
   });
 
@@ -176,8 +235,13 @@ export function useVoiceChat() {
     isPlaying,
     isMuted: player.isMuted,
     setMuted: player.setMuted,
+    isTtsFinished: ttsFinished,
+    lastAudioAt,
     isTyping: chat.isTyping,
     messages: chat.messages,
+    isTalkingHeadReady: talkingHead.isReady,
+    lipsyncMetrics,
+    setCamera: talkingHead.setCamera,
     init,
     reconnect,
     disconnect: ws.disconnect,

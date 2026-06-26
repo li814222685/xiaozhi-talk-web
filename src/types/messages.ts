@@ -7,12 +7,26 @@ export interface AudioParams {
   frame_duration: number;
 }
 
+// 带时间戳和强度的 viseme，由服务端能量包络对齐计算给出。
+export interface TimedViseme {
+  shape: string;
+  startMs: number;
+  durMs: number;
+  intensity: number;
+}
+
 // 服务端下行消息（区分联合类型）
 export type ServerMessage =
   | { type: "hello"; session_id: string; audio_params?: AudioParams }
   | { type: "stt"; text: string }
   | { type: "llm"; content: string }
-  | { type: "tts"; state: "start" | "stop" | "sentence_start" | "sentence_end"; text?: string }
+  | {
+      type: "tts";
+      state: "start" | "stop" | "sentence_start" | "sentence_end";
+      text?: string;
+      visemes?: string[];
+      timedVisemes?: TimedViseme[];
+    }
   | { type: "audio"; data: ArrayBuffer }
   | { type: "error"; message?: string; error?: string }
   | { type: "abort"; reason: string };
