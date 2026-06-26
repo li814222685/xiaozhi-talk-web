@@ -38,3 +38,8 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Claude / OMC local state
+.claude/settings.local.json
+.omc/
+.playwright-mcp/
