@@ -24,7 +24,6 @@ export type ServerMessage =
       type: "tts";
       state: "start" | "stop" | "sentence_start" | "sentence_end";
       text?: string;
-      visemes?: string[];
       timedVisemes?: TimedViseme[];
     }
   | { type: "audio"; data: ArrayBuffer }

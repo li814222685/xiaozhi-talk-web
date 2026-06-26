@@ -104,16 +104,14 @@ export function useVoiceChat(avatarContainerRef: () => HTMLElement | null) {
           } else {
             chat.startAssistantMessage(msg.text);
           }
-          // 服务端优先下发 timedVisemes（精确时序），否则退化用 visemes 数组
-          visemeDriver.onSentenceStart(msg.visemes, msg.timedVisemes);
+          // 服务端下发 timedVisemes 时启动 viseme driver；没下发就只显示文本不驱动嘴型
+          visemeDriver.onSentenceStart(msg.timedVisemes);
           audioFrameCount = 0;
           const state = visemeDriver.getState();
-          if (state.timedVisemes.length > 0 || state.visemes.length > 0) {
+          if (state.timedVisemes.length > 0) {
             lipsyncMetrics.onSentenceStart(
               msg.text || "",
-              state.timedVisemes.length > 0
-                ? state.timedVisemes.map((v) => v.shape)
-                : state.visemes,
+              state.timedVisemes.map((v) => v.shape),
               state.totalFrames
             );
           }

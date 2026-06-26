@@ -15,7 +15,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/xiaozhi": {
-        target: "ws://192.168.112.254:8989/xiaozhi/v1/", //服务器
+        target: "ws://127.0.0.1:8989/xiaozhi/v1/", //本地 lipsync 联调
+        // target: "ws://192.168.112.254:8989/xiaozhi/v1/", //服务器
         // target: "ws://192.168.31.30:8000/xiaozhi/v1/", //home全套本地仿真服务
         // target: "ws://192.168.112.213:8000/xiaozhi/v1/", //xiaozhi-esp32 java服务
         // target: "ws://192.168.112.81:8989/xiaozhi/v1/", //本地go
