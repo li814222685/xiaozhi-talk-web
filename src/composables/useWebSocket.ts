@@ -173,7 +173,6 @@ export function useXiaozhiWebSocket() {
 
   // 建立 WebSocket 连接，附加设备标识参数，连接后发送 hello 握手
   const connect = (url: string) => {
-    const mcpEnabled = localStorage.getItem("xiaozhi_mcp_enabled") === "true";
     const fullUrl = url.includes("?")
       ? `${url}&device-id=${deviceId.value}&client-id=${clientId.value}`
       : `${url}?device-id=${deviceId.value}&client-id=${clientId.value}`;
@@ -199,7 +198,7 @@ export function useXiaozhiWebSocket() {
             type: "hello",
             version: 1,
             transport: "websocket",
-            features: { mcp: mcpEnabled },
+            features: { mcp: mcpEnabled.value },
             audio_params: {
               format: "opus",
               sample_rate: 16000,
