@@ -12,7 +12,8 @@ export function useTalkingHead(containerRef: () => HTMLElement | null) {
   // 每帧由 update 回调把实际 morph 值朝目标平滑插值，实现帧间过渡
   const visemeTargets = new Map<string, number>();
   const visemeCurrent = new Map<string, number>();
-  const SMOOTH_FACTOR = 0.35;
+  // [档 1] 帧间插值速度。0.35 → 0.5：每帧朝目标走 50%，嘴更快到位（约 60ms 接近峰值）
+  const SMOOTH_FACTOR = 0.5;
   const KNOWN_VISEMES = [
     "aa", "E", "I", "O", "U",
     "PP", "FF", "DD", "kk", "CH", "SS", "nn", "RR", "TH", "sil",
