@@ -170,6 +170,11 @@
             />
           </ElSelect>
         </div>
+        <div class="settings-field">
+          <label>MCP 模拟服务</label>
+          <ElSwitch v-model="settingsForm.mcpEnabled" />
+          <span class="settings-hint">开启后前端模拟 MCP 设备端，响应后台工具调用</span>
+        </div>
       </div>
       <template #footer>
         <ElButton @click="showSettings = false">取消</ElButton>
@@ -192,12 +197,13 @@ import { useVoiceChat } from "@/composables/useVoiceChat";
 import MarkdownContent from "@/components/MarkdownContent.vue";
 import { avatarSets, AVATAR_STORAGE_KEY } from "@/config/avatars";
 import AppLoader from "@/components/AppLoader.vue";
-import { ElDialog, ElInput, ElSelect, ElOption, ElButton } from "element-plus";
+import { ElDialog, ElInput, ElSelect, ElOption, ElButton, ElSwitch } from "element-plus";
 import "element-plus/es/components/dialog/style/css";
 import "element-plus/es/components/input/style/css";
 import "element-plus/es/components/select/style/css";
 import "element-plus/es/components/option/style/css";
 import "element-plus/es/components/button/style/css";
+import "element-plus/es/components/switch/style/css";
 
 // 暗色模式
 const isDark = useDark({
@@ -251,13 +257,14 @@ const onSendText = () => {
 
 // 设置弹窗
 const showSettings = ref(false);
-const settingsForm = reactive({ clientId: "", deviceId: "", avatarIdx: 0, wsUrl: "" });
+const settingsForm = reactive({ clientId: "", deviceId: "", avatarIdx: 0, wsUrl: "", mcpEnabled: false });
 
 const toggleMagic = () => {
   settingsForm.clientId = localStorage.getItem("xiaozhi_client_id") ?? "";
   settingsForm.deviceId = localStorage.getItem("xiaozhi_device_id") ?? "";
   settingsForm.avatarIdx = avatarIndex.value;
   settingsForm.wsUrl = localStorage.getItem("xiaozhi_ws_url") ?? "";
+  settingsForm.mcpEnabled = localStorage.getItem("xiaozhi_mcp_enabled") === "true";
   showSettings.value = true;
 };
 
@@ -272,8 +279,10 @@ const saveSettings = () => {
   } else {
     localStorage.removeItem("xiaozhi_ws_url");
   }
+  localStorage.setItem("xiaozhi_mcp_enabled", String(settingsForm.mcpEnabled));
   avatarIndex.value = settingsForm.avatarIdx;
   showSettings.value = false;
+  window.location.reload();
 };
 
 // 分享：复制当前页面链接

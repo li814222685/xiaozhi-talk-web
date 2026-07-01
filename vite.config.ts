@@ -23,6 +23,8 @@ export default defineConfig({
         // target: "ws://192.168.112.109:8989", //后端本地
         ws: true,
         changeOrigin: true,
+        timeout: 0,
+        proxyTimeout: 0,
       },
     },
   },
