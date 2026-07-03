@@ -106,6 +106,8 @@ export function useXiaozhiWebSocket() {
               { name: "机房", type: "work", floor: "7", x: 5.447, y: 1.736 },
               { name: "716会议室", type: "work", floor: "7", x: -6.570, y: 2.200 },
               { name: "茶水间", type: "work", floor: "7", x: -1.771, y: 5.036 },
+              { name: "实验室1", type: "work", floor: "7", x: -3.771, y: 4.036 },
+              { name: "实验室2", type: "work", floor: "7", x: -5.771, y: 8.036 },
             ],
           });
         }
