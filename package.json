@@ -10,8 +10,11 @@
     "publish": "bash scripts/deploy.sh"
   },
   "dependencies": {
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/theme-one-dark": "^6.1.3",
     "@mdi/font": "^7.4.47",
     "@vueuse/core": "^14.3.0",
+    "codemirror": "^6.0.2",
     "element-plus": "^2.9.1",
     "markdown-it": "^14.2.0",
     "nanoid": "^5.1.11",

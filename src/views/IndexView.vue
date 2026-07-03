@@ -24,6 +24,9 @@
           >
             <i class="mdi mdi-refresh icon"></i>
           </button>
+          <button class="btn-icon" title="调试：发送原始消息" @click="openDebug">
+            <i class="mdi mdi-code-json icon"></i>
+          </button>
           <button
             class="btn-icon"
             :title="isMuted ? '取消静音' : '静音'"
@@ -181,11 +184,34 @@
         <ElButton type="primary" @click="saveSettings">保存</ElButton>
       </template>
     </ElDialog>
+
+    <ElDialog
+      v-model="showDebug"
+      title="调试台"
+      width="560px"
+      :close-on-click-modal="false"
+      class="debug-dialog"
+    >
+      <div class="debug-form">
+        <div class="debug-toolbar">
+          <ElButton size="small" @click="formatDebugJson">格式化</ElButton>
+          <span v-if="debugError" class="debug-error">{{ debugError }}</span>
+          <span v-else class="settings-hint">合法 JSON，直接通过 WS 发出，不进对话列表</span>
+        </div>
+        <div ref="editorEl" class="debug-editor"></div>
+      </div>
+      <template #footer>
+        <ElButton @click="showDebug = false">取消</ElButton>
+        <ElButton type="primary" :disabled="!isConnected" @click="sendDebugJson"
+          >发送</ElButton
+        >
+      </template>
+    </ElDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, reactive, watch } from "vue";
 import {
   useDark,
   useToggle,
@@ -193,6 +219,10 @@ import {
   useClipboard,
   useLocalStorage,
 } from "@vueuse/core";
+import { EditorView, basicSetup } from "codemirror";
+import { json } from "@codemirror/lang-json";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { Compartment } from "@codemirror/state";
 import { useVoiceChat } from "@/composables/useVoiceChat";
 import MarkdownContent from "@/components/MarkdownContent.vue";
 import { avatarSets, AVATAR_STORAGE_KEY } from "@/config/avatars";
@@ -233,6 +263,7 @@ const {
   reconnect,
   handleVoiceClick,
   handleSendText,
+  sendRaw,
 } = useVoiceChat();
 
 const toggleMute = () => setMuted(!isMuted.value);
@@ -284,6 +315,107 @@ const saveSettings = () => {
   showSettings.value = false;
   window.location.reload();
 };
+
+// 调试弹窗：直接向 WS 发送原始 JSON
+const DEBUG_JSON_KEY = "xiaozhi_debug_json";
+const DEFAULT_DEBUG_JSON = JSON.stringify(
+  {
+    type: "iot",
+    session_id: "",
+    payload: {
+      type: "face_detected",
+      person_name: "",
+      title: "未知",
+      status: "success",
+    },
+  },
+  null,
+  2
+);
+const showDebug = ref(false);
+const debugError = ref("");
+const editorEl = ref<HTMLElement | null>(null);
+
+// CodeMirror 实例（非响应式，Vue 不需要追踪其内部状态）
+let editorView: EditorView | null = null;
+// Compartment：让主题（明/暗）可在运行时热切换，无需重建整个编辑器
+const themeCompartment = new Compartment();
+
+const getEditorText = () => editorView?.state.doc.toString() ?? "";
+const setEditorText = (text: string) => {
+  editorView?.dispatch({
+    changes: { from: 0, to: editorView.state.doc.length, insert: text },
+  });
+};
+
+// 格式化 + 顺带校验 JSON 合法性
+const formatDebugJson = () => {
+  try {
+    setEditorText(JSON.stringify(JSON.parse(getEditorText()), null, 2));
+    debugError.value = "";
+  } catch (e) {
+    debugError.value = "JSON 格式错误：" + (e as Error).message;
+  }
+};
+
+const createEditor = () => {
+  if (!editorEl.value) return;
+  editorView = new EditorView({
+    doc: localStorage.getItem(DEBUG_JSON_KEY) || DEFAULT_DEBUG_JSON,
+    parent: editorEl.value,
+    extensions: [
+      basicSetup,
+      json(),
+      themeCompartment.of(isDark.value ? oneDark : []),
+      EditorView.theme({ "&": { height: "300px", fontSize: "13px" } }),
+      // 粘贴后下一帧自动格式化（先让默认粘贴生效，再重排）
+      EditorView.domEventHandlers({
+        paste: () => {
+          setTimeout(formatDebugJson, 0);
+        },
+      }),
+    ],
+  });
+};
+
+// 明暗主题切换时，热替换编辑器主题
+watch(isDark, (dark) => {
+  editorView?.dispatch({
+    effects: themeCompartment.reconfigure(dark ? oneDark : []),
+  });
+});
+
+const openDebug = () => {
+  debugError.value = "";
+  showDebug.value = true;
+  nextTick(() => {
+    if (!editorView) {
+      createEditor();
+    } else {
+      setEditorText(localStorage.getItem(DEBUG_JSON_KEY) || DEFAULT_DEBUG_JSON);
+    }
+  });
+};
+
+const sendDebugJson = () => {
+  let payload: unknown;
+  const text = getEditorText();
+  try {
+    payload = JSON.parse(text);
+  } catch (e) {
+    debugError.value = "JSON 格式错误：" + (e as Error).message;
+    return;
+  }
+  // 压缩成单行发送，同时记住本次内容方便下次调试
+  sendRaw(JSON.stringify(payload));
+  localStorage.setItem(DEBUG_JSON_KEY, text);
+  showDebug.value = false;
+};
+
+onBeforeUnmount(() => {
+  editorView?.destroy();
+  editorView = null;
+});
 
 // 分享：复制当前页面链接
 const shareApp = () => {

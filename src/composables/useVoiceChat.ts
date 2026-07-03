@@ -183,5 +183,7 @@ export function useVoiceChat() {
     disconnect: ws.disconnect,
     handleVoiceClick,
     handleSendText,
+    // 调试用：直接向 WS 发送原始字符串，不进对话列表
+    sendRaw: ws.send,
   };
 }
