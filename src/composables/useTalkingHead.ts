@@ -146,6 +146,12 @@ export function useTalkingHead(containerRef: () => HTMLElement | null) {
   const streamEnd = () => {
     if (!head) return;
     head.streamNotifyEnd();
+    // 把所有 viseme target 置零，让 opt.update 回调通过插值平滑闭嘴。
+    // 不能用 resetVisemeState()（它会 clear 两个 map），否则 update 里
+    // target=0 && cur=0 直接 continue，morph 值永远停在最后一帧。
+    for (const name of KNOWN_VISEMES) {
+      visemeTargets.set(name, 0);
+    }
   };
 
   const streamInterrupt = () => {

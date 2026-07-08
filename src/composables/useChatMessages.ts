@@ -11,6 +11,8 @@ export function useChatMessages() {
   let typeTimer: ReturnType<typeof setTimeout> | null = null;
 
   // 逐字渲染队列中的文本（队列耗尽时保持光标，由 finishAssistantMessage 关闭）
+  // 速度自适应：目标是 ~1.5s 清完当前队列，与 TTS 语音节奏大致同步。
+  // 队列长（英文长句/多句积压）→ 加速；队列短 → 减速到 80ms 保持打字质感。
   const processTypeQueue = () => {
     if (typeQueue.length === 0) {
       typeTimer = null;
@@ -23,7 +25,9 @@ export function useChatMessages() {
       msg.content += char;
     }
 
-    typeTimer = setTimeout(processTypeQueue, 80);
+    const remaining = typeQueue.length;
+    const interval = Math.max(15, Math.min(80, 1500 / Math.max(1, remaining)));
+    typeTimer = setTimeout(processTypeQueue, interval);
   };
 
   // 添加用户消息
