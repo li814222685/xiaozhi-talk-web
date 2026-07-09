@@ -194,16 +194,24 @@
     >
       <div class="debug-form">
         <div class="debug-toolbar">
+          <ElSelect v-model="debugMode" size="small" style="width: 130px" @change="onDebugModeChange">
+            <ElOption label="发送 WS" value="ws" />
+            <ElOption label="Mock POI" value="poi" />
+          </ElSelect>
           <ElButton size="small" @click="formatDebugJson">格式化</ElButton>
           <span v-if="debugError" class="debug-error">{{ debugError }}</span>
-          <span v-else class="settings-hint">合法 JSON，直接通过 WS 发出，不进对话列表</span>
+          <span v-else-if="debugMode === 'ws'" class="settings-hint">合法 JSON，直接通过 WS 发出</span>
+          <span v-else class="settings-hint">编辑后保存，MCP query_poi 将返回此数据</span>
         </div>
         <div ref="editorEl" class="debug-editor"></div>
       </div>
       <template #footer>
         <ElButton @click="showDebug = false">取消</ElButton>
-        <ElButton type="primary" :disabled="!isConnected" @click="sendDebugJson"
+        <ElButton v-if="debugMode === 'ws'" type="primary" :disabled="!isConnected" @click="sendDebugJson"
           >发送</ElButton
+        >
+        <ElButton v-else type="success" @click="saveMockPoi"
+          >保存</ElButton
         >
       </template>
     </ElDialog>
@@ -224,6 +232,7 @@ import { json } from "@codemirror/lang-json";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { Compartment } from "@codemirror/state";
 import { useVoiceChat } from "@/composables/useVoiceChat";
+import { MOCK_POI_KEY, DEFAULT_MOCK_POI } from "@/composables/useWebSocket";
 import MarkdownContent from "@/components/MarkdownContent.vue";
 import { avatarSets, AVATAR_STORAGE_KEY } from "@/config/avatars";
 import AppLoader from "@/components/AppLoader.vue";
@@ -334,6 +343,7 @@ const DEFAULT_DEBUG_JSON = JSON.stringify(
 );
 const showDebug = ref(false);
 const debugError = ref("");
+const debugMode = ref<"ws" | "poi">("ws");
 const editorEl = ref<HTMLElement | null>(null);
 
 // CodeMirror 实例（非响应式，Vue 不需要追踪其内部状态）
@@ -387,6 +397,7 @@ watch(isDark, (dark) => {
 
 const openDebug = () => {
   debugError.value = "";
+  debugMode.value = "ws";
   showDebug.value = true;
   nextTick(() => {
     if (!editorView) {
@@ -395,6 +406,40 @@ const openDebug = () => {
       setEditorText(localStorage.getItem(DEBUG_JSON_KEY) || DEFAULT_DEBUG_JSON);
     }
   });
+};
+
+const getPoiText = () => {
+  const stored = localStorage.getItem(MOCK_POI_KEY);
+  if (stored) {
+    try {
+      return JSON.stringify(JSON.parse(stored), null, 2);
+    } catch {
+      localStorage.removeItem(MOCK_POI_KEY);
+    }
+  }
+  return JSON.stringify(DEFAULT_MOCK_POI, null, 2);
+};
+
+const onDebugModeChange = (mode: "ws" | "poi") => {
+  debugError.value = "";
+  if (mode === "poi") {
+    setEditorText(getPoiText());
+  } else {
+    setEditorText(localStorage.getItem(DEBUG_JSON_KEY) || DEFAULT_DEBUG_JSON);
+  }
+};
+
+const saveMockPoi = () => {
+  const text = getEditorText();
+  try {
+    JSON.parse(text);
+  } catch (e) {
+    debugError.value = "JSON 格式错误：" + (e as Error).message;
+    return;
+  }
+  localStorage.setItem(MOCK_POI_KEY, text);
+  debugError.value = "";
+  showDebug.value = false;
 };
 
 const sendDebugJson = () => {

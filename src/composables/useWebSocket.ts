@@ -9,6 +9,24 @@ import type { ServerMessage } from "@/types/messages";
 
 type MessageHandler = (msg: ServerMessage) => void;
 
+export const MOCK_POI_KEY = "xiaozhi_mock_poi";
+
+export const DEFAULT_MOCK_POI = {
+  mapPoi: [
+    { name: "调试台", type: "work", floor: "7", x: 1.677, y: -0.878 },
+    { name: "test", type: "work", floor: "7", x: -3.354, y: -0.739 },
+    { name: "door1", type: "work", floor: "7", x: -5.307, y: 7.805 },
+    { name: "desk", type: "work", floor: "7", x: 7.068, y: -0.648 },
+    { name: "开关", type: "work", floor: "7", x: -0.820, y: 2.142 },
+    { name: "前台", type: "work", floor: "7", x: -3.236, y: -4.054 },
+    { name: "机房", type: "work", floor: "7", x: 5.447, y: 1.736 },
+    { name: "716会议室", type: "work", floor: "7", x: -6.570, y: 2.200 },
+    { name: "茶水间", type: "work", floor: "7", x: -1.771, y: 5.036 },
+    { name: "实验室1", type: "work", floor: "7", x: -3.771, y: 4.036 },
+    { name: "实验室2", type: "work", floor: "7", x: -5.771, y: 8.036 },
+  ],
+};
+
 export function useXiaozhiWebSocket() {
   // 设备标识，持久化到 localStorage
   const deviceId = useLocalStorage("xiaozhi_device_id", nanoid());
@@ -95,21 +113,18 @@ export function useXiaozhiWebSocket() {
         let resultText = "true";
 
         if (toolName === "self.robot.query_poi") {
-          resultText = JSON.stringify({
-            mapPoi: [
-              { name: "调试台", type: "work", floor: "7", x: 1.677, y: -0.878 },
-              { name: "test", type: "work", floor: "7", x: -3.354, y: -0.739 },
-              { name: "door1", type: "work", floor: "7", x: -5.307, y: 7.805 },
-              { name: "desk", type: "work", floor: "7", x: 7.068, y: -0.648 },
-              { name: "开关", type: "work", floor: "7", x: -0.820, y: 2.142 },
-              { name: "前台", type: "work", floor: "7", x: -3.236, y: -4.054 },
-              { name: "机房", type: "work", floor: "7", x: 5.447, y: 1.736 },
-              { name: "716会议室", type: "work", floor: "7", x: -6.570, y: 2.200 },
-              { name: "茶水间", type: "work", floor: "7", x: -1.771, y: 5.036 },
-              { name: "实验室1", type: "work", floor: "7", x: -3.771, y: 4.036 },
-              { name: "实验室2", type: "work", floor: "7", x: -5.771, y: 8.036 },
-            ],
-          });
+          const stored = localStorage.getItem(MOCK_POI_KEY);
+          if (stored) {
+            try {
+              JSON.parse(stored);
+              resultText = stored;
+            } catch {
+              localStorage.removeItem(MOCK_POI_KEY);
+              resultText = JSON.stringify(DEFAULT_MOCK_POI);
+            }
+          } else {
+            resultText = JSON.stringify(DEFAULT_MOCK_POI);
+          }
         }
 
         sendMcpResponse({
